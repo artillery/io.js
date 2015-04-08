@@ -12,7 +12,7 @@
     'node_use_openssl%': 'true',
     'node_shared_openssl%': 'false',
     'node_v8_options%': '',
-    'node_target_type%': 'executable',
+    'node_target_type%': 'shared_library',
     'library_files': [
       'src/node.js',
       'lib/_debug_agent.js',
@@ -114,7 +114,6 @@
         'src/node_file.cc',
         'src/node_http_parser.cc',
         'src/node_javascript.cc',
-        'src/node_main.cc',
         'src/node_os.cc',
         'src/node_v8.cc',
         'src/node_stat_watcher.cc',
