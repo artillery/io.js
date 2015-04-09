@@ -4060,6 +4060,24 @@ static void CleanupWorkerContexts() {
     delete context;
 }
 
+static void Loop(v8::Platform* platform, v8::Isolate* isolate, uv_loop_t* uv_loop, Environment* env) {
+  bool more;
+  do {
+    v8::platform::PumpMessageLoop(platform, isolate);
+    more = uv_run(uv_loop, UV_RUN_ONCE);
+
+    if (more == false) {
+      v8::platform::PumpMessageLoop(platform, isolate);
+      EmitBeforeExit(env);
+
+      // Emit `beforeExit` if the loop became alive either after emitting
+      // event, or after running some callbacks.
+      more = uv_loop_alive(uv_loop);
+      if (uv_run(uv_loop, UV_RUN_NOWAIT) != 0)
+        more = true;
+    }
+  } while (more == true);
+}
 
 void QueueWorkerContextCleanup(WorkerContext* context) {
   ScopedLock::Mutex lock(&cleanup_queue_mutex_);
@@ -4070,7 +4088,9 @@ void QueueWorkerContextCleanup(WorkerContext* context) {
 static int RunMainThread(int argc,
                            const char** argv,
                            int exec_argc,
-                           const char** exec_argv) {
+                           const char** exec_argv,
+                           void(*loop)(v8::Platform*, v8::Isolate*, uv_loop_t*, Environment*)
+                           ) {
   // Fetch a reference to the main isolate, so we have a reference to it
   // even when we need it to access it from another (debugger) thread.
   Isolate::CreateParams params;
@@ -4110,6 +4130,12 @@ static int RunMainThread(int argc,
     // Enable debugger
     if (use_debug_agent)
       EnableDebug(env);
+
+    if (loop != nullptr) {
+      loop(default_platform, isolate, env->event_loop(), env);
+    } else {
+      Loop(default_platform, isolate, env->event_loop(), env);
+    }
 
     {
       SealHandleScope seal(node_isolate);
@@ -4168,11 +4194,12 @@ size_t GenerateThreadId() {
 }
 
 
-int Start(int argc, char** argv) {
+int Start(int argc, char** argv, void(*loop)(v8::Platform*, Isolate*, uv_loop_t*, Environment*)) {
   CHECK_EQ(uv_mutex_init(&process_mutex), 0);
   CHECK_EQ(uv_mutex_init(&thread_id_counter_mutex), 0);
   CHECK_EQ(uv_mutex_init(&cleanup_queue_mutex_), 0);
   CHECK_EQ(uv_rwlock_init(&process_rwlock), 0);
+
   PlatformInit();
 
   CHECK_GT(argc, 0);
@@ -4200,7 +4227,8 @@ int Start(int argc, char** argv) {
   int exit_code = RunMainThread(argc,
                                   const_cast<const char**>(argv),
                                   exec_argc,
-                                  exec_argv);
+                                  exec_argv,
+                                  loop);
   V8::Dispose();
   V8::ShutdownPlatform();
 
