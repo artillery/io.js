@@ -178,19 +178,20 @@ typedef intptr_t ssize_t;
 
 namespace node {
 
+class Environment;
+
 NODE_EXTERN extern bool no_deprecation;
 #if HAVE_OPENSSL && NODE_FIPS_MODE
 NODE_EXTERN extern bool enable_fips_crypto;
 NODE_EXTERN extern bool force_fips_crypto;
 #endif
 
-NODE_EXTERN int Start(int argc, char *argv[]);
+NODE_EXTERN int Start(int argc, char *argv[],
+                      void(*loop)(v8::Platform*, v8::Isolate*, uv_loop_s*, Environment*));
 NODE_EXTERN void Init(int* argc,
                       const char** argv,
                       int* exec_argc,
                       const char*** exec_argv);
-
-class Environment;
 
 NODE_EXTERN Environment* CreateEnvironment(v8::Isolate* isolate,
                                            struct uv_loop_s* loop,
