@@ -3793,10 +3793,28 @@ Environment* CreateEnvironment(Isolate* isolate,
   return env;
 }
 
+static void Loop(v8::Platform* platform, v8::Isolate* isolate, uv_loop_t* uv_loop, Environment* env) {
+  bool more;
+  do {
+    v8::platform::PumpMessageLoop(platform, isolate);
+    more = uv_run(uv_loop, UV_RUN_ONCE);
+
+    if (more == false) {
+      v8::platform::PumpMessageLoop(platform, isolate);
+      EmitBeforeExit(env);
+
+      // Emit `beforeExit` if the loop became alive either after emitting
+      // event, or after running some callbacks.
+      more = uv_loop_alive(uv_loop);
+      if (uv_run(uv_loop, UV_RUN_NOWAIT) != 0)
+        more = true;
+    }
+  } while (more == true);
+}
 
 // Entry point for new node instances, also called directly for the main
 // node instance.
-static void StartNodeInstance(void* arg) {
+static void StartNodeInstance(void* arg, void(*loop)(v8::Platform*, v8::Isolate*, uv_loop_t*, Environment*)) {
   NodeInstanceData* instance_data = static_cast<NodeInstanceData*>(arg);
   Isolate* isolate = Isolate::New();
     // Fetch a reference to the main isolate, so we have a reference to it
@@ -3821,6 +3839,12 @@ static void StartNodeInstance(void* arg) {
     // Enable debugger
     if (instance_data->use_debug_agent())
       EnableDebug(env);
+
+    if (loop != nullptr) {
+      loop(default_platform, isolate, env->event_loop(), env);
+    } else {
+      Loop(default_platform, isolate, env->event_loop(), env);
+    }
 
     bool more;
     do {
@@ -3855,7 +3879,7 @@ static void StartNodeInstance(void* arg) {
     node_isolate = nullptr;
 }
 
-int Start(int argc, char** argv) {
+int Start(int argc, char** argv, void(*loop)(v8::Platform*, Isolate*, uv_loop_t*, Environment*)) {
   PlatformInit();
 
   CHECK_GT(argc, 0);
@@ -3889,7 +3913,7 @@ int Start(int argc, char** argv) {
                                    exec_argc,
                                    exec_argv,
                                    use_debug_agent);
-    StartNodeInstance(&instance_data);
+    StartNodeInstance(&instance_data, loop);
     exit_code = instance_data.exit_code();
   }
   V8::Dispose();
