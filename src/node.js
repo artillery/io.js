@@ -620,8 +620,19 @@
         break;
 
       default:
+
+        // Artillery hack -- the only time this seems to happen is when
+        // we run Atlas as a SUBSYSTEM:WINDOWS app. I'm opening a console
+        // in main.cpp so we'll just treat stdio as a TTY.
+        var tty = NativeModule.require('tty');
+        stream = new tty.WriteStream(fd);
+        stream._type = 'tty';
+        if (stream._handle && stream._handle.unref) {
+          stream._handle.unref();
+        }
+
         // Probably an error on in uv_guess_handle()
-        throw new Error('Implement me. Unknown stream file type!');
+        //throw new Error('Implement me. Unknown stream file type!');
     }
 
     // For supporting legacy API we put the FD here.
