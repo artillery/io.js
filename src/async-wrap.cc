@@ -164,6 +164,8 @@ void LoadAsyncWrapperInfo(Environment* env) {
 Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
                                       int argc,
                                       Local<Value>* argv) {
+  if (!env()->CanCallIntoJs())
+    return Undefined(env()->isolate());
   CHECK(env()->context() == env()->isolate()->GetCurrentContext());
 
   Local<Function> pre_fn = env()->async_hooks_pre_function();
@@ -198,6 +200,8 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
   if (ran_init_callback() && !pre_fn.IsEmpty()) {
     try_catch.SetVerbose(false);
     pre_fn->Call(context, 0, nullptr);
+    if (try_catch.HasTerminated())
+      return Undefined(env()->isolate());
     if (try_catch.HasCaught())
       FatalError("node::AsyncWrap::MakeCallback", "pre hook threw");
     try_catch.SetVerbose(true);
@@ -212,6 +216,8 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
   if (ran_init_callback() && !post_fn.IsEmpty()) {
     try_catch.SetVerbose(false);
     post_fn->Call(context, 0, nullptr);
+    if (try_catch.HasTerminated())
+      return Undefined(env()->isolate());
     if (try_catch.HasCaught())
       FatalError("node::AsyncWrap::MakeCallback", "post hook threw");
     try_catch.SetVerbose(true);
