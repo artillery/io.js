@@ -56,12 +56,16 @@ exports.refreshTmpDir = function() {
   fs.mkdirSync(exports.tmpDir);
 };
 
-if (process.env.TEST_THREAD_ID) {
+if ((process.workerData && process.workerData.testThreadId) ||
+    process.env.TEST_THREAD_ID) {
+  const id = +((process.workerData && process.workerData.testThreadId) ||
+               process.env.TEST_THREAD_ID);
+
   // Distribute ports in parallel tests
   if (!process.env.NODE_COMMON_PORT)
-    exports.PORT += +process.env.TEST_THREAD_ID * 100;
+    exports.PORT += id * 100;
 
-  exports.tmpDirName += '.' + process.env.TEST_THREAD_ID;
+  exports.tmpDirName += '.' + id;
 }
 exports.tmpDir = path.join(exports.testDir, exports.tmpDirName);
 
@@ -453,3 +457,29 @@ exports.fileExists = function(pathname) {
     return false;
   }
 };
+
+exports.runTestInsideWorker = function(testFilePath, data) {
+  const Worker = require('worker');
+  return new Promise(function(resolve, reject) {
+    var worker = new Worker(testFilePath, {
+      keepAlive: false,
+      data: data
+    });
+    worker.on('exit', function(exitCode) {
+      if (exitCode === 0)
+        resolve();
+      else
+        reject(new Error(util.format(
+            '%s exited with code %s', testFile, exitCode)));
+    });
+
+    worker.on('error', function(e) {
+      reject(new Error(util.format(
+          'Running %s inside worker failed:\n%s', testFilePath, e.stack)));
+    });
+  });
+};
+
+process.on('unhandledRejection', function(e) {
+  throw e;
+});
