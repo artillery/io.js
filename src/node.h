@@ -187,7 +187,8 @@ NODE_EXTERN extern bool force_fips_crypto;
 #endif
 
 NODE_EXTERN int Start(int argc, char *argv[],
-                      void(*loop)(v8::Platform*, v8::Isolate*, uv_loop_s*, Environment*));
+                      void(*loop)(v8::Platform*, v8::Isolate*, uv_loop_s*, Environment*),
+                      void(*loadExtensions)(v8::Isolate*, v8::Local<v8::Object> global));
 NODE_EXTERN void Init(int* argc,
                       const char** argv,
                       int* exec_argc,
@@ -200,7 +201,8 @@ NODE_EXTERN Environment* CreateEnvironment(v8::Isolate* isolate,
                                            const char* const* argv,
                                            int exec_argc,
                                            const char* const* exec_argv);
-NODE_EXTERN void LoadEnvironment(Environment* env);
+NODE_EXTERN void LoadEnvironment(Environment* env,
+                                 void(*loadExtensions)(v8::Isolate*, v8::Local<v8::Object>));
 
 // NOTE: Calling this is the same as calling
 // CreateEnvironment() + LoadEnvironment() from above.

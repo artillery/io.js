@@ -185,7 +185,7 @@ void Agent::WorkerRun() {
 
     // Expose API
     InitAdaptor(env);
-    LoadEnvironment(env);
+    LoadEnvironment(env, nullptr);
 
     CHECK_EQ(&child_loop_, env->event_loop());
     uv_run(&child_loop_, UV_RUN_DEFAULT);

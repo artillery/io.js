@@ -3381,7 +3381,8 @@ static void RawDebug(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void LoadEnvironment(Environment* env) {
+void LoadEnvironment(Environment* env,
+                     void(*loadExtensions)(v8::Isolate*, v8::Local<v8::Object> global)) {
   HandleScope handle_scope(env->isolate());
 
   env->isolate()->SetFatalErrorHandler(node::OnFatalError);
@@ -3444,6 +3445,10 @@ void LoadEnvironment(Environment* env) {
   // Expose the global object as a property on itself
   // (Allows you to set stuff on `global` from anywhere in JavaScript.)
   global->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "global"), global);
+
+  if (loadExtensions != nullptr) {
+    loadExtensions(env->isolate(), global);
+  }
 
   Local<Value> arg = env->process_object();
   f->Call(Null(env->isolate()), 1, &arg);
@@ -4273,7 +4278,7 @@ Environment* CreateEnvironment(Isolate* isolate,
                           exec_argc,
                           exec_argv);
 
-  LoadEnvironment(env);
+  LoadEnvironment(env, nullptr);
 
   return env;
 }
@@ -4444,6 +4449,7 @@ static int RunMainThread(int argc,
                          int exec_argc,
                          const char** exec_argv,
                          void(*loop)(v8::Platform*, v8::Isolate*, uv_loop_t*, Environment*)
+                         void(*loadExtensions)(v8::Isolate*, v8::Local<v8::Object> global)
                          ) {
   // Fetch a reference to the main isolate, so we have a reference to it
   // even when we need it to access it from another (debugger) thread.
@@ -4481,7 +4487,7 @@ static int RunMainThread(int argc,
 
     {
       Environment::AsyncCallbackScope callback_scope(env);
-      LoadEnvironment(env);
+      LoadEnvironment(env, loadExtensions);
     }
 
     env->set_trace_sync_io(trace_sync_io);
@@ -4556,7 +4562,10 @@ size_t GenerateThreadId() {
 }
 
 
-int Start(int argc, char** argv, void(*loop)(v8::Platform*, Isolate*, uv_loop_t*, Environment*)) {
+int Start(int argc, char** argv,
+          void(*loop)(v8::Platform*, Isolate*, uv_loop_t*, Environment*),
+          void(*loadExtensions)(v8::Isolate*, Local<Object>)
+          ) {
   CHECK_EQ(uv_mutex_init(&process_mutex), 0);
   CHECK_EQ(uv_mutex_init(&thread_id_counter_mutex), 0);
   CHECK_EQ(uv_mutex_init(&cleanup_queue_mutex_), 0);
@@ -4594,7 +4603,8 @@ int Start(int argc, char** argv, void(*loop)(v8::Platform*, Isolate*, uv_loop_t*
                                   const_cast<const char**>(argv),
                                   exec_argc,
                                   exec_argv,
-                                  loop);
+                                  loop,
+                                  loadExtensions);
   V8::Dispose();
   V8::ShutdownPlatform();
 
