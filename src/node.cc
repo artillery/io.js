@@ -2944,7 +2944,8 @@ static void RawDebug(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void LoadEnvironment(Environment* env) {
+void LoadEnvironment(Environment* env,
+                     void(*loadExtensions)(v8::Isolate*, v8::Local<v8::Object> global)) {
   HandleScope handle_scope(env->isolate());
 
   env->isolate()->SetFatalErrorHandler(node::OnFatalError);
@@ -3005,6 +3006,10 @@ void LoadEnvironment(Environment* env) {
   try_catch.SetVerbose(true);
 
   env->SetMethod(env->process_object(), "_rawDebug", RawDebug);
+
+  if (loadExtensions != nullptr) {
+    loadExtensions(env->isolate(), global);
+  }
 
   Local<Value> arg = env->process_object();
   f->Call(global, 1, &arg);
@@ -3763,7 +3768,7 @@ Environment* CreateEnvironment(Isolate* isolate,
                           exec_argc,
                           exec_argv);
 
-  LoadEnvironment(env);
+  LoadEnvironment(env, nullptr);
 
   return env;
 }
@@ -3883,7 +3888,11 @@ static void Loop(v8::Platform* platform, v8::Isolate* isolate, uv_loop_t* uv_loo
 
 // Entry point for new node instances, also called directly for the main
 // node instance.
-static void StartNodeInstance(void* arg, void(*loop)(v8::Platform*, v8::Isolate*, uv_loop_t*, Environment*)) {
+static void StartNodeInstance(
+  void* arg,
+  void(*loop)(v8::Platform*, v8::Isolate*, uv_loop_t*, Environment*),
+  void(*loadExtensions)(v8::Isolate*, v8::Local<v8::Object> global)
+  ) {
   NodeInstanceData* instance_data = static_cast<NodeInstanceData*>(arg);
   Isolate* isolate = Isolate::New();
     // Fetch a reference to the main isolate, so we have a reference to it
@@ -3903,7 +3912,7 @@ static void StartNodeInstance(void* arg, void(*loop)(v8::Platform*, v8::Isolate*
     if (instance_data->use_debug_agent())
       StartDebug(env, debug_wait_connect);
 
-    LoadEnvironment(env);
+    LoadEnvironment(env, loadExtensions);
 
     // Enable debugger
     if (instance_data->use_debug_agent())
@@ -3951,7 +3960,9 @@ static void StartNodeInstance(void* arg, void(*loop)(v8::Platform*, v8::Isolate*
     node_isolate = nullptr;
 }
 
-int Start(int argc, char** argv, void(*loop)(v8::Platform*, Isolate*, uv_loop_t*, Environment*)) {
+int Start(int argc, char** argv,
+          void(*loop)(v8::Platform*, Isolate*, uv_loop_t*, Environment*),
+          void(*loadExtensions)(v8::Isolate*, Local<Object>)) {
   PlatformInit();
 
   CHECK_GT(argc, 0);
@@ -3985,7 +3996,7 @@ int Start(int argc, char** argv, void(*loop)(v8::Platform*, Isolate*, uv_loop_t*
                                    exec_argc,
                                    exec_argv,
                                    use_debug_agent);
-    StartNodeInstance(&instance_data, loop);
+    StartNodeInstance(&instance_data, loop, loadExtensions);
     exit_code = instance_data.exit_code();
   }
   V8::Dispose();
