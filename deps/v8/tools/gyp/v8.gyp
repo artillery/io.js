@@ -950,6 +950,7 @@
         '../../src/utils.cc',
         '../../src/utils.h',
         '../../src/v8.cc',
+        '../../src/v8-wrap.cc',
         '../../src/v8.h',
         '../../src/v8memory.h',
         '../../src/v8threads.cc',
