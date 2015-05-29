@@ -241,6 +241,7 @@ template <> class LocalTraits<Object> {
 
     void Set(Local<String> key, Local<Function> f);
     void Set(Local<String> key, Local<Integer> d);
+    void Set(Local<String> key, Local<Object> o);
 
    private:
     Type* _val;
@@ -615,6 +616,9 @@ void LocalTraits<Object>::Wrap::Set(Local<String> key, Local<Function> p) {
 }
 void LocalTraits<Object>::Wrap::Set(Local<String> key, Local<Integer> d) {
   V8_Wrap_Local_Object_Set_String_Integer(_val, key.getHidden(), d.getHidden());
+}
+void LocalTraits<Object>::Wrap::Set(Local<String> key, Local<Object> o) {
+  V8_Wrap_Local_Object_Set_String_Object(_val, key.getHidden(), o.getHidden());
 }
 Local<Value> LocalTraits<Object>::To_Local_Value(Local<Object> o) {
   return Local<Value>(V8_Wrap_Local_Object_To_Local_Value(o.getHidden()));

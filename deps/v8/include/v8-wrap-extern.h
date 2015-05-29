@@ -135,6 +135,9 @@ void V8_Wrap_Local_Object_Set_String_Function(
 void V8_Wrap_Local_Object_Set_String_Integer(
   v8hidden::Local_Object* o, v8hidden::Local_String* key, v8hidden::Local_Integer* f);
 
+void V8_Wrap_Local_Object_Set_String_Object(
+  v8hidden::Local_Object* o, v8hidden::Local_String* key, v8hidden::Local_Object* d);
+
 v8hidden::Local_Value* V8_Wrap_Local_Object_To_Local_Value(v8hidden::Local_Object* o);
 
 // Local<Function>
