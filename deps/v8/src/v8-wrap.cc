@@ -383,7 +383,7 @@ v8hidden::Local_FunctionTemplate* V8_Wrap_FunctionTemplate_New(
     v8::FunctionTemplate::New(
       i,
       [](const v8::FunctionCallbackInfo<Value>& args) {
-        void* fn = External::Cast(*(args.Data()));
+        void* fn = External::Cast(*(args.Data()))->Value();
         wrapper(args.GetIsolate(), fn, &args);
       },
       callback
