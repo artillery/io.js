@@ -224,6 +224,13 @@ void V8_Wrap_Local_Object_Set_String_Integer(v8hidden::Local_Object* o,
   (*o)->Set(*key, *d);
 }
 
+void V8_Wrap_Local_Object_Set_String_Object(v8hidden::Local_Object* o,
+                                            v8hidden::Local_String* key,
+                                            v8hidden::Local_Object* d) {
+  (*o)->Set(*key, *d);
+}
+
+
 #define V8_WRAP_CAST_TO_LOCAL_VALUE(sym) \
 v8hidden::Local_Value* V8_Wrap_Local_##sym##_To_Local_Value(v8hidden::Local_##sym* o) { \
   return new Local<Value>(*o); \
