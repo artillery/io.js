@@ -883,6 +883,10 @@ class ObjectTemplate {
   }
 };
 
+static v8wrap::Local<v8wrap::Object> CopyObject(v8hidden::Local_Object* object) {
+  return Local<Object>(V8_Wrap_Local_Object_Copy(object));
+}
+
 };
 
 #endif // _V8_WRAP
