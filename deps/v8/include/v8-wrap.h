@@ -334,13 +334,31 @@ template <> class LocalTraits<ObjectTemplate> {
   };
 };
 
+class ArrayBuffer_Contents {
+ public:
+  ArrayBuffer_Contents(void* data, size_t byteLength)
+  : _data(data), _byteLength(byteLength) {}
+
+  void* Data() const { return _data; }
+  size_t ByteLength() const { return _byteLength; }
+
+ private:
+  void* _data;
+  size_t _byteLength;
+};
+
 template <> class LocalTraits<ArrayBuffer> {
  public:
   V8_WRAP_LOCAL_TRAITS_BOILERPLATE(ArrayBuffer);
 
   class Wrap {
    public:
-    explicit Wrap(Type* val) {}
+    explicit Wrap(Type* val) : _val(val) {}
+
+    ArrayBuffer_Contents GetContents();
+
+   private:
+    Type* _val;
   };
 };
 
@@ -682,6 +700,15 @@ Local<Value> LocalTraits<Integer>::To_Local_Value(Local<Integer> o) {
   return Local<Value>(V8_Wrap_Local_Integer_To_Local_Value(o.getHidden()));
 }
 
+// LocalTraits<ArrayBuffer>
+ArrayBuffer_Contents LocalTraits<ArrayBuffer>::Wrap::GetContents() {
+  void* data;
+  size_t length;
+  V8_Wrap_Local_ArrayBuffer_GetContents(_val, &data, &length);
+  ArrayBuffer_Contents ret(data, length);
+  return ret;
+}
+
 // LocalTraits<FunctionTemplate>
 Local<FunctionTemplate> LocalTraits<FunctionTemplate>::NewFromPersistent(
   v8hidden::Isolate* i, const Persistent<FunctionTemplate>& p) {
@@ -795,6 +822,8 @@ class ArrayBuffer {
   static Local<ArrayBuffer> New(v8hidden::Isolate* isolate, void* data, size_t byteLength) {
     return Local<ArrayBuffer>(V8_Wrap_ArrayBuffer_New(isolate, data, byteLength));
   }
+
+  typedef ArrayBuffer_Contents Contents;
 };
 
 class Float32Array {
