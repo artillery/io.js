@@ -3137,6 +3137,15 @@ class V8_EXPORT ArrayBuffer : public Object {
    */
   Contents Externalize();
 
+  /**
+   * ------====== ADDED BY ARTILLERY ======------
+   * Get the contents of the array buffer *without* externalizing the array.
+   * It's probably safe to keep the pointer as long as you ahve an active handle to the ArrayBuffer.
+   * In theory v8 might move the ArrayBuffer around during garbage collection, but that's probably
+   * very unlikely.
+   */
+  Contents GetContents();
+
   V8_INLINE static ArrayBuffer* Cast(Value* obj);
 
   static const int kInternalFieldCount = V8_ARRAY_BUFFER_INTERNAL_FIELD_COUNT;
