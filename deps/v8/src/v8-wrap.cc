@@ -349,6 +349,12 @@ v8hidden::Local_ArrayBuffer* V8_Wrap_ArrayBuffer_New(v8hidden::Isolate* isolate,
                                                      size_t byteLength) {
   return new Local<ArrayBuffer>(ArrayBuffer::New(isolate, data, byteLength));
 }
+void V8_Wrap_Local_ArrayBuffer_GetContents(
+  v8hidden::Local_ArrayBuffer* b, void** data /* OUT */, size_t* length /* OUT */) {
+  auto contents = (*b)->GetContents();
+  *data = contents.Data();
+  *length = contents.ByteLength();
+}
 
 // Float32Array
 v8hidden::Local_Float32Array* V8_Wrap_Float32Array_New(v8hidden::Local_ArrayBuffer* buffer,
