@@ -245,6 +245,8 @@ v8hidden::Local_Object* V8_Wrap_Local_ObjectTemplate_NewInstance(v8hidden::Local
 
 // Local<ArrayBuffer>
 V8_WRAP_LOCAL_DECLS(ArrayBuffer);
+void V8_Wrap_Local_ArrayBuffer_GetContents(
+  v8hidden::Local_ArrayBuffer* b, void** data /* OUT */, size_t* length /* OUT */);
 
 // Local<Float32Array>
 V8_WRAP_LOCAL_DECLS(Float32Array);
