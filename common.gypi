@@ -74,6 +74,7 @@
         },
         'xcode_settings': {
           'GCC_OPTIMIZATION_LEVEL': '0', # stop gyp from defaulting to -Os
+          'GCC_WARN_INHIBIT_ALL_WARNINGS': 'YES', # Artillery - hide warnings for now
         },
       },
       'Release': {
