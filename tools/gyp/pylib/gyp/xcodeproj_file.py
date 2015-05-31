@@ -1850,6 +1850,12 @@ class XCBuildPhase(XCObject):
     self._AddBuildFileToDicts(pbxbuildfile, path)
 
   def AddFile(self, path, settings=None):
+
+    # Artillery - Hack to prevent options appearing in the "Link Binary With
+    # Libraries" build phase.
+    if path.startswith('-'):
+      return
+
     (file_group, hierarchical) = self.FileGroup(path)
     file_ref = file_group.AddOrGetFileByPath(path, hierarchical)
 
