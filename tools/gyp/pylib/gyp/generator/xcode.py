@@ -604,9 +604,13 @@ def GenerateOutput(target_list, target_dicts, data, params):
     xcode_projects[build_file] = xcp
     pbxp = xcp.project
 
+    # Artillery - cheap hack to hide warnings in Xcode.
+    attributes = {'LastUpgradeCheck': '0630'}
+
     if parallel_builds:
-      pbxp.SetProperty('attributes',
-                       {'BuildIndependentTargetsInParallel': 'YES'})
+      attributes['BuildIndependentTargetsInParallel'] = 'YES'
+
+    pbxp.SetProperty('attributes', attributes)
 
     # Add gyp/gypi files to project
     if not generator_flags.get('standalone'):
