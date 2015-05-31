@@ -200,13 +200,14 @@ template <> class LocalTraits<Value> {
     Type* getHidden() { return _val; }
     Type* operator*() { return _val; }
 
-    bool IsObject() { return V8_Wrap_Local_Value_IsObject(_val); }
-    bool IsBoolean() { return V8_Wrap_Local_Value_IsBoolean(_val); }
-    bool IsInt32() { return V8_Wrap_Local_Value_IsInt32(_val); }
-    bool IsUint32() { return V8_Wrap_Local_Value_IsUint32(_val); }
-    bool IsNumber() { return V8_Wrap_Local_Value_IsNumber(_val); }
-    bool IsString() { return V8_Wrap_Local_Value_IsString(_val); }
-    bool IsFunction() { return V8_Wrap_Local_Value_IsFunction(_val); }
+    bool IsObject() const { return V8_Wrap_Local_Value_IsObject(_val); }
+    bool IsBoolean() const { return V8_Wrap_Local_Value_IsBoolean(_val); }
+    bool IsInt32() const { return V8_Wrap_Local_Value_IsInt32(_val); }
+    bool IsUint32() const { return V8_Wrap_Local_Value_IsUint32(_val); }
+    bool IsNumber() const { return V8_Wrap_Local_Value_IsNumber(_val); }
+    bool IsString() const { return V8_Wrap_Local_Value_IsString(_val); }
+    bool IsFunction() const { return V8_Wrap_Local_Value_IsFunction(_val); }
+    bool IsArrayBuffer() const { return V8_Wrap_Local_Value_IsArrayBuffer(_val); }
 
     int32_t Int32Value() const { return V8_Wrap_Local_Value_Int32Value(_val); }
     uint32_t Uint32Value() const { return V8_Wrap_Local_Value_Uint32Value(_val); }
@@ -388,6 +389,8 @@ class Local {
 
   static Local<T> New(v8hidden::Isolate* i, const Persistent<T>& p);
 
+  template <typename S> static Local<T> Cast(Local<S> that);
+
   bool IsEmpty() { return LocalTraits<T>::IsEmpty(_l); }
 
  private:
@@ -399,6 +402,12 @@ class Local {
 template <typename T>
 Local<T>::operator Local<Value>() {
   return LocalTraits<T>::To_Local_Value(*this);
+}
+
+template <>
+template <>
+Local<ArrayBuffer> Local<ArrayBuffer>::Cast(Local<Value> that) {
+  return Local<ArrayBuffer>(V8_Wrap_Local_Value_Cast_ArrayBuffer(that.getHidden()));
 }
 
 template <typename T>
