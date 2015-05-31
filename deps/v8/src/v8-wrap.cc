@@ -106,7 +106,12 @@ v8hidden::Local_Boolean* V8_Wrap_Local_##sym##_ToBoolean(v8hidden::Local_##sym* 
 } \
 v8hidden::Local_Object* V8_Wrap_Local_##sym##_ToObject(v8hidden::Local_##sym* l, v8hidden::Isolate* i) { \
   return new v8::Local<Object>((*l)->ToObject(i)); \
-}
+} \
+
+#define V8_WRAP_LOCAL_CASTS(sym) \
+v8hidden::Local_ArrayBuffer* V8_Wrap_Local_##sym##_Cast_ArrayBuffer(v8hidden::Local_##sym* l) { \
+  return new v8::Local<ArrayBuffer>(v8::Local<ArrayBuffer>::Cast(*l)); \
+} \
 
 #define V8_WRAP_LOCAL_PREDICATE_DEFS(sym) \
 bool V8_Wrap_Local_##sym##_IsInt32(v8hidden::Local_##sym* l) { \
@@ -129,6 +134,9 @@ bool V8_Wrap_Local_##sym##_IsString(v8hidden::Local_##sym* l) { \
 } \
 bool V8_Wrap_Local_##sym##_IsFunction(v8hidden::Local_##sym* l) { \
   return (*l)->IsFunction(); \
+} \
+bool V8_Wrap_Local_##sym##_IsArrayBuffer(v8hidden::Local_##sym* l) { \
+  return (*l)->IsArrayBuffer(); \
 } \
 
 #define V8_WRAP_LOCAL_VALUE_DEFS(sym) \
