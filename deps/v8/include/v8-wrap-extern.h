@@ -46,7 +46,10 @@ void V8_Wrap_Local_##sym##_Delete(v8hidden::Local_##sym* n);
 #define V8_WRAP_LOCAL_CONVERSION_DECLS(sym) \
 v8hidden::Local_Int32* V8_Wrap_Local_##sym##_ToInt32(v8hidden::Local_##sym* l, v8hidden::Isolate* i); \
 v8hidden::Local_Boolean* V8_Wrap_Local_##sym##_ToBoolean(v8hidden::Local_##sym* l, v8hidden::Isolate* i); \
-v8hidden::Local_Object* V8_Wrap_Local_##sym##_ToObject(v8hidden::Local_##sym* l, v8hidden::Isolate* i);
+v8hidden::Local_Object* V8_Wrap_Local_##sym##_ToObject(v8hidden::Local_##sym* l, v8hidden::Isolate* i); \
+
+#define V8_WRAP_LOCAL_CASTS(sym) \
+v8hidden::Local_ArrayBuffer* V8_Wrap_Local_##sym##_Cast_ArrayBuffer(v8hidden::Local_##sym* l); \
 
 #define V8_WRAP_LOCAL_PREDICATE_DECLS(sym) \
 bool V8_Wrap_Local_##sym##_IsInt32(v8hidden::Local_##sym* l); \
@@ -55,7 +58,8 @@ bool V8_Wrap_Local_##sym##_IsBoolean(v8hidden::Local_##sym* l); \
 bool V8_Wrap_Local_##sym##_IsObject(v8hidden::Local_##sym* l); \
 bool V8_Wrap_Local_##sym##_IsNumber(v8hidden::Local_##sym* l); \
 bool V8_Wrap_Local_##sym##_IsString(v8hidden::Local_##sym* l); \
-bool V8_Wrap_Local_##sym##_IsFunction(v8hidden::Local_##sym* l);
+bool V8_Wrap_Local_##sym##_IsFunction(v8hidden::Local_##sym* l); \
+bool V8_Wrap_Local_##sym##_IsArrayBuffer(v8hidden::Local_##sym* l); \
 
 #define V8_WRAP_LOCAL_VALUE_DECLS(sym) \
 int32_t V8_Wrap_Local_##sym##_Int32Value(v8hidden::Local_##sym* l); \
@@ -101,6 +105,7 @@ char* V8_Wrap_Local_String_Utf8Value_C_Str(v8hidden::Local_Value* s);
 // Local<Value>
 V8_WRAP_LOCAL_DECLS(Value);
 V8_WRAP_LOCAL_CONVERSION_DECLS(Value);
+V8_WRAP_LOCAL_CASTS(Value);
 V8_WRAP_LOCAL_PREDICATE_DECLS(Value);
 V8_WRAP_LOCAL_VALUE_DECLS(Value);
 
