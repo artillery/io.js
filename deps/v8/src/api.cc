@@ -6095,6 +6095,16 @@ v8::ArrayBuffer::Contents v8::ArrayBuffer::Externalize() {
   return contents;
 }
 
+// <ADDED BY ARTILLERY>
+v8::ArrayBuffer::Contents v8::ArrayBuffer::GetContents() {
+  i::Handle<i::JSArrayBuffer> obj = Utils::OpenHandle(this);
+  size_t byte_length = static_cast<size_t>(obj->byte_length()->Number());
+  Contents contents;
+  contents.data_ = obj->backing_store();
+  contents.byte_length_ = byte_length;
+  return contents;
+}
+// </ADDED BY ARTILLERY>
 
 void v8::ArrayBuffer::Neuter() {
   i::Handle<i::JSArrayBuffer> obj = Utils::OpenHandle(this);
