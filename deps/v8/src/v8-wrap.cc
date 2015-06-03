@@ -28,6 +28,7 @@ using v8::Integer;
 using v8::Function;
 using v8::Number;
 using v8::ArrayBuffer;
+using v8::TypedArray;
 using v8::Float32Array;
 using v8::Uint8Array;
 using v8::ReturnValue;
@@ -50,6 +51,7 @@ namespace v8hidden {
   typedef v8::Local<v8::FunctionTemplate> Local_FunctionTemplate;
   typedef v8::Local<v8::ObjectTemplate> Local_ObjectTemplate;
   typedef v8::Local<v8::ArrayBuffer> Local_ArrayBuffer;
+  typedef v8::Local<v8::TypedArray> Local_TypedArray;
   typedef v8::Local<v8::Float32Array> Local_Float32Array;
   typedef v8::Local<v8::Uint8Array> Local_Uint8Array;
   typedef v8::Persistent<v8::FunctionTemplate> Persistent_FunctionTemplate;
@@ -112,6 +114,9 @@ v8hidden::Local_Object* V8_Wrap_Local_##sym##_ToObject(v8hidden::Local_##sym* l,
 v8hidden::Local_ArrayBuffer* V8_Wrap_Local_##sym##_Cast_ArrayBuffer(v8hidden::Local_##sym* l) { \
   return new v8::Local<ArrayBuffer>(v8::Local<ArrayBuffer>::Cast(*l)); \
 } \
+v8hidden::Local_TypedArray* V8_Wrap_Local_##sym##_Cast_TypedArray(v8hidden::Local_##sym* l) { \
+  return new v8::Local<TypedArray>(v8::Local<TypedArray>::Cast(*l)); \
+} \
 
 #define V8_WRAP_LOCAL_PREDICATE_DEFS(sym) \
 bool V8_Wrap_Local_##sym##_IsInt32(v8hidden::Local_##sym* l) { \
@@ -137,6 +142,9 @@ bool V8_Wrap_Local_##sym##_IsFunction(v8hidden::Local_##sym* l) { \
 } \
 bool V8_Wrap_Local_##sym##_IsArrayBuffer(v8hidden::Local_##sym* l) { \
   return (*l)->IsArrayBuffer(); \
+} \
+bool V8_Wrap_Local_##sym##_IsTypedArray(v8hidden::Local_##sym* l) { \
+  return (*l)->IsTypedArray(); \
 } \
 
 #define V8_WRAP_LOCAL_VALUE_DEFS(sym) \
@@ -169,6 +177,7 @@ uint32_t V8_Wrap_Local_Uint32_Value(v8hidden::Local_Uint32* v) {
 // Local<Value>
 V8_WRAP_LOCAL_DEFS(Value)
 V8_WRAP_LOCAL_CONVERSION_DEFS(Value)
+V8_WRAP_LOCAL_CASTS(Value)
 V8_WRAP_LOCAL_PREDICATE_DEFS(Value);
 V8_WRAP_LOCAL_VALUE_DEFS(Value);
 
@@ -450,6 +459,18 @@ V8_Wrap_Local_ObjectTemplate_NewInstance(v8hidden::Local_ObjectTemplate* o) {
 
 // Local<ArrayBuffer>
 V8_WRAP_LOCAL_DEFS(ArrayBuffer);
+// Local<TypedArray>
+V8_WRAP_LOCAL_DEFS(TypedArray);
+size_t V8_Wrap_Local_TypedArray_ByteOffset(v8hidden::Local_TypedArray* a) {
+  return (*a)->ByteOffset();
+}
+size_t V8_Wrap_Local_TypedArray_ByteLength(v8hidden::Local_TypedArray* a) {
+  return (*a)->ByteLength();
+}
+v8hidden::Local_ArrayBuffer* V8_Wrap_Local_TypedArray_Buffer(v8hidden::Local_TypedArray* a) {
+  return new Local<ArrayBuffer>((*a)->Buffer());
+}
+
 // Local<Float32Array>
 V8_WRAP_LOCAL_DEFS(Float32Array);
 // Local<Uint8Array>
