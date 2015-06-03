@@ -50,6 +50,7 @@ v8hidden::Local_Object* V8_Wrap_Local_##sym##_ToObject(v8hidden::Local_##sym* l,
 
 #define V8_WRAP_LOCAL_CASTS(sym) \
 v8hidden::Local_ArrayBuffer* V8_Wrap_Local_##sym##_Cast_ArrayBuffer(v8hidden::Local_##sym* l); \
+v8hidden::Local_TypedArray* V8_Wrap_Local_##sym##_Cast_TypedArray(v8hidden::Local_##sym* l); \
 
 #define V8_WRAP_LOCAL_PREDICATE_DECLS(sym) \
 bool V8_Wrap_Local_##sym##_IsInt32(v8hidden::Local_##sym* l); \
@@ -60,6 +61,7 @@ bool V8_Wrap_Local_##sym##_IsNumber(v8hidden::Local_##sym* l); \
 bool V8_Wrap_Local_##sym##_IsString(v8hidden::Local_##sym* l); \
 bool V8_Wrap_Local_##sym##_IsFunction(v8hidden::Local_##sym* l); \
 bool V8_Wrap_Local_##sym##_IsArrayBuffer(v8hidden::Local_##sym* l); \
+bool V8_Wrap_Local_##sym##_IsTypedArray(v8hidden::Local_##sym* l); \
 
 #define V8_WRAP_LOCAL_VALUE_DECLS(sym) \
 int32_t V8_Wrap_Local_##sym##_Int32Value(v8hidden::Local_##sym* l); \
@@ -247,6 +249,12 @@ v8hidden::Local_Object* V8_Wrap_Local_ObjectTemplate_NewInstance(v8hidden::Local
 V8_WRAP_LOCAL_DECLS(ArrayBuffer);
 void V8_Wrap_Local_ArrayBuffer_GetContents(
   v8hidden::Local_ArrayBuffer* b, void** data /* OUT */, size_t* length /* OUT */);
+
+// Local<TypedArray>
+V8_WRAP_LOCAL_DECLS(TypedArray);
+size_t V8_Wrap_Local_TypedArray_ByteOffset(v8hidden::Local_TypedArray* a);
+size_t V8_Wrap_Local_TypedArray_ByteLength(v8hidden::Local_TypedArray* a);
+v8hidden::Local_ArrayBuffer* V8_Wrap_Local_TypedArray_Buffer(v8hidden::Local_TypedArray* a);
 
 // Local<Float32Array>
 V8_WRAP_LOCAL_DECLS(Float32Array);
