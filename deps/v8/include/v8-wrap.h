@@ -24,6 +24,7 @@ namespace v8hidden {
   class Local_FunctionTemplate;
   class Local_ObjectTemplate;
   class Local_ArrayBuffer;
+  class Local_TypedArray;
   class Local_Float32Array;
   class Local_Uint8Array;
   class Persistent_FunctionTemplate;
@@ -88,6 +89,7 @@ class External;
 class FunctionTemplate;
 class ObjectTemplate;
 class ArrayBuffer;
+class TypedArray;
 class Float32Array;
 class Uint8Array;
 
@@ -208,6 +210,7 @@ template <> class LocalTraits<Value> {
     bool IsString() const { return V8_Wrap_Local_Value_IsString(_val); }
     bool IsFunction() const { return V8_Wrap_Local_Value_IsFunction(_val); }
     bool IsArrayBuffer() const { return V8_Wrap_Local_Value_IsArrayBuffer(_val); }
+    bool IsTypedArray() const { return V8_Wrap_Local_Value_IsTypedArray(_val); }
 
     int32_t Int32Value() const { return V8_Wrap_Local_Value_Int32Value(_val); }
     uint32_t Uint32Value() const { return V8_Wrap_Local_Value_Uint32Value(_val); }
@@ -362,6 +365,22 @@ template <> class LocalTraits<ArrayBuffer> {
   };
 };
 
+template <> class LocalTraits<TypedArray> {
+ public:
+  V8_WRAP_LOCAL_TRAITS_BOILERPLATE(TypedArray);
+
+  class Wrap {
+   public:
+    explicit Wrap(Type* val) : _val(val) {}
+
+    Local<ArrayBuffer> Buffer();
+    size_t ByteOffset() { return V8_Wrap_Local_TypedArray_ByteOffset(_val); }
+    size_t ByteLength() { return V8_Wrap_Local_TypedArray_ByteLength(_val); }
+   private:
+    Type* _val;
+  };
+};
+
 template <> class LocalTraits<Float32Array> {
  public:
   V8_WRAP_LOCAL_TRAITS_BOILERPLATE(Float32Array);
@@ -427,6 +446,13 @@ template <>
 Local<ArrayBuffer> Local<ArrayBuffer>::Cast(Local<Value> that) {
   return Local<ArrayBuffer>(V8_Wrap_Local_Value_Cast_ArrayBuffer(that.getHidden()));
 }
+
+template <>
+template <>
+Local<TypedArray> Local<TypedArray>::Cast(Local<Value> that) {
+  return Local<TypedArray>(V8_Wrap_Local_Value_Cast_TypedArray(that.getHidden()));
+}
+
 
 template <typename T>
 class ReturnValue {
@@ -709,6 +735,11 @@ ArrayBuffer_Contents LocalTraits<ArrayBuffer>::Wrap::GetContents() {
   return ret;
 }
 
+// LocalTraits<TypedArray>
+Local<ArrayBuffer> LocalTraits<TypedArray>::Wrap::Buffer() {
+  return Local<ArrayBuffer>(V8_Wrap_Local_TypedArray_Buffer(_val));
+}
+
 // LocalTraits<FunctionTemplate>
 Local<FunctionTemplate> LocalTraits<FunctionTemplate>::NewFromPersistent(
   v8hidden::Isolate* i, const Persistent<FunctionTemplate>& p) {
@@ -824,6 +855,15 @@ class ArrayBuffer {
   }
 
   typedef ArrayBuffer_Contents Contents;
+};
+
+class TypedArray {
+ public:
+  /*
+  static Local<ArrayBuffer> New(v8hidden::Isolate* isolate, void* data, size_t byteLength) {
+    return Local<ArrayBuffer>(V8_Wrap_ArrayBuffer_New(isolate, data, byteLength));
+  }
+  */
 };
 
 class Float32Array {
