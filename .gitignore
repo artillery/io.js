@@ -1,4 +1,6 @@
 core
+.DS_Store
+.*~
 vgcore.*
 v8*.log
 perf.data
