@@ -24,6 +24,7 @@ namespace v8hidden {
   class Local_FunctionTemplate;
   class Local_ObjectTemplate;
   class Local_ArrayBuffer;
+  class Local_TypedArray;
   class Local_Float32Array;
   class Local_Uint8Array;
   class Persistent_FunctionTemplate;
@@ -88,6 +89,7 @@ class External;
 class FunctionTemplate;
 class ObjectTemplate;
 class ArrayBuffer;
+class TypedArray;
 class Float32Array;
 class Uint8Array;
 
@@ -200,13 +202,15 @@ template <> class LocalTraits<Value> {
     Type* getHidden() { return _val; }
     Type* operator*() { return _val; }
 
-    bool IsObject() { return V8_Wrap_Local_Value_IsObject(_val); }
-    bool IsBoolean() { return V8_Wrap_Local_Value_IsBoolean(_val); }
-    bool IsInt32() { return V8_Wrap_Local_Value_IsInt32(_val); }
-    bool IsUint32() { return V8_Wrap_Local_Value_IsUint32(_val); }
-    bool IsNumber() { return V8_Wrap_Local_Value_IsNumber(_val); }
-    bool IsString() { return V8_Wrap_Local_Value_IsString(_val); }
-    bool IsFunction() { return V8_Wrap_Local_Value_IsFunction(_val); }
+    bool IsObject() const { return V8_Wrap_Local_Value_IsObject(_val); }
+    bool IsBoolean() const { return V8_Wrap_Local_Value_IsBoolean(_val); }
+    bool IsInt32() const { return V8_Wrap_Local_Value_IsInt32(_val); }
+    bool IsUint32() const { return V8_Wrap_Local_Value_IsUint32(_val); }
+    bool IsNumber() const { return V8_Wrap_Local_Value_IsNumber(_val); }
+    bool IsString() const { return V8_Wrap_Local_Value_IsString(_val); }
+    bool IsFunction() const { return V8_Wrap_Local_Value_IsFunction(_val); }
+    bool IsArrayBuffer() const { return V8_Wrap_Local_Value_IsArrayBuffer(_val); }
+    bool IsTypedArray() const { return V8_Wrap_Local_Value_IsTypedArray(_val); }
 
     int32_t Int32Value() const { return V8_Wrap_Local_Value_Int32Value(_val); }
     uint32_t Uint32Value() const { return V8_Wrap_Local_Value_Uint32Value(_val); }
@@ -333,13 +337,47 @@ template <> class LocalTraits<ObjectTemplate> {
   };
 };
 
+class ArrayBuffer_Contents {
+ public:
+  ArrayBuffer_Contents(void* data, size_t byteLength)
+  : _data(data), _byteLength(byteLength) {}
+
+  void* Data() const { return _data; }
+  size_t ByteLength() const { return _byteLength; }
+
+ private:
+  void* _data;
+  size_t _byteLength;
+};
+
 template <> class LocalTraits<ArrayBuffer> {
  public:
   V8_WRAP_LOCAL_TRAITS_BOILERPLATE(ArrayBuffer);
 
   class Wrap {
    public:
-    explicit Wrap(Type* val) {}
+    explicit Wrap(Type* val) : _val(val) {}
+
+    ArrayBuffer_Contents GetContents();
+
+   private:
+    Type* _val;
+  };
+};
+
+template <> class LocalTraits<TypedArray> {
+ public:
+  V8_WRAP_LOCAL_TRAITS_BOILERPLATE(TypedArray);
+
+  class Wrap {
+   public:
+    explicit Wrap(Type* val) : _val(val) {}
+
+    Local<ArrayBuffer> Buffer();
+    size_t ByteOffset() { return V8_Wrap_Local_TypedArray_ByteOffset(_val); }
+    size_t ByteLength() { return V8_Wrap_Local_TypedArray_ByteLength(_val); }
+   private:
+    Type* _val;
   };
 };
 
@@ -388,6 +426,8 @@ class Local {
 
   static Local<T> New(v8hidden::Isolate* i, const Persistent<T>& p);
 
+  template <typename S> static Local<T> Cast(Local<S> that);
+
   bool IsEmpty() { return LocalTraits<T>::IsEmpty(_l); }
 
  private:
@@ -400,6 +440,19 @@ template <typename T>
 Local<T>::operator Local<Value>() {
   return LocalTraits<T>::To_Local_Value(*this);
 }
+
+template <>
+template <>
+Local<ArrayBuffer> Local<ArrayBuffer>::Cast(Local<Value> that) {
+  return Local<ArrayBuffer>(V8_Wrap_Local_Value_Cast_ArrayBuffer(that.getHidden()));
+}
+
+template <>
+template <>
+Local<TypedArray> Local<TypedArray>::Cast(Local<Value> that) {
+  return Local<TypedArray>(V8_Wrap_Local_Value_Cast_TypedArray(that.getHidden()));
+}
+
 
 template <typename T>
 class ReturnValue {
@@ -673,6 +726,20 @@ Local<Value> LocalTraits<Integer>::To_Local_Value(Local<Integer> o) {
   return Local<Value>(V8_Wrap_Local_Integer_To_Local_Value(o.getHidden()));
 }
 
+// LocalTraits<ArrayBuffer>
+ArrayBuffer_Contents LocalTraits<ArrayBuffer>::Wrap::GetContents() {
+  void* data;
+  size_t length;
+  V8_Wrap_Local_ArrayBuffer_GetContents(_val, &data, &length);
+  ArrayBuffer_Contents ret(data, length);
+  return ret;
+}
+
+// LocalTraits<TypedArray>
+Local<ArrayBuffer> LocalTraits<TypedArray>::Wrap::Buffer() {
+  return Local<ArrayBuffer>(V8_Wrap_Local_TypedArray_Buffer(_val));
+}
+
 // LocalTraits<FunctionTemplate>
 Local<FunctionTemplate> LocalTraits<FunctionTemplate>::NewFromPersistent(
   v8hidden::Isolate* i, const Persistent<FunctionTemplate>& p) {
@@ -786,6 +853,17 @@ class ArrayBuffer {
   static Local<ArrayBuffer> New(v8hidden::Isolate* isolate, void* data, size_t byteLength) {
     return Local<ArrayBuffer>(V8_Wrap_ArrayBuffer_New(isolate, data, byteLength));
   }
+
+  typedef ArrayBuffer_Contents Contents;
+};
+
+class TypedArray {
+ public:
+  /*
+  static Local<ArrayBuffer> New(v8hidden::Isolate* isolate, void* data, size_t byteLength) {
+    return Local<ArrayBuffer>(V8_Wrap_ArrayBuffer_New(isolate, data, byteLength));
+  }
+  */
 };
 
 class Float32Array {
