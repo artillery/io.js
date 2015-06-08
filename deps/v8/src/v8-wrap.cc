@@ -110,7 +110,7 @@ v8hidden::Local_Object* V8_Wrap_Local_##sym##_ToObject(v8hidden::Local_##sym* l,
   return new v8::Local<Object>((*l)->ToObject(i)); \
 } \
 
-#define V8_WRAP_LOCAL_CASTS(sym) \
+#define V8_WRAP_LOCAL_CAST_DEFS(sym) \
 v8hidden::Local_ArrayBuffer* V8_Wrap_Local_##sym##_Cast_ArrayBuffer(v8hidden::Local_##sym* l) { \
   return new v8::Local<ArrayBuffer>(v8::Local<ArrayBuffer>::Cast(*l)); \
 } \
@@ -177,7 +177,7 @@ uint32_t V8_Wrap_Local_Uint32_Value(v8hidden::Local_Uint32* v) {
 // Local<Value>
 V8_WRAP_LOCAL_DEFS(Value)
 V8_WRAP_LOCAL_CONVERSION_DEFS(Value)
-V8_WRAP_LOCAL_CASTS(Value)
+V8_WRAP_LOCAL_CAST_DEFS(Value)
 V8_WRAP_LOCAL_PREDICATE_DEFS(Value);
 V8_WRAP_LOCAL_VALUE_DEFS(Value);
 
@@ -333,11 +333,22 @@ bool V8_Wrap_Local_Boolean_Value(v8hidden::Local_Boolean* b) {
 
 // Function
 v8hidden::Local_Value* V8_Wrap_Function_Call(v8hidden::Function* f, v8hidden::Local_Object* ctx,
-                                             int argc, v8hidden::Local_Value* hiddenArgv[]) {
+  int argc, v8hidden::Local_Value* hiddenArgv[]) {
+
+  // Unfortunately, since MSVC++ is terrible, we have to live with a maximum of 20
+  // arguments. We aren't likely to need more than that anyway.
+  const int kMaxArgc = 20;
+  CHECK(argc <= kMaxArgc);
+
+  // This is for forcing alignment. (MSVS doesn't like alignas and alignof)
+  union {
+    void* voidPtr;
+    double dummy;
+    uint8_t argv_buf[kMaxArgc * sizeof(Local<Value>)];
+  } argvUnion;
 
   // Hacky workaround for lack of variable length non-POD arrays.
-  alignas(alignof(Local<Value>)) uint8_t argv_buf[argc * sizeof(Local<Value>)];
-  Local<Value>* argv = reinterpret_cast<Local<Value>*>(argv_buf);
+  Local<Value>* argv = reinterpret_cast<Local<Value>*>(argvUnion.argv_buf);
 
   for (int i = 0; i < argc; i++) {
     new (&argv[i]) Local<Value>(*(hiddenArgv[i]));
