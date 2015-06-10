@@ -34,6 +34,9 @@ namespace v8hidden {
   class Function;
 }
 
+// v8-wrap-extern.h uses V8_EXPORT, but it only needs to be defined when building v8 itself.
+#define V8_EXPORT
+
 #include "v8-wrap-extern.h"
 
 #include <utility>

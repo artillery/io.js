@@ -39,7 +39,7 @@ namespace v8wrap {
 
 
 #define V8_WRAP_LOCAL_DECLS(sym) \
-v8hidden::Local_##sym* V8_Wrap_Local_##sym##_Copy(v8hidden::Local_##sym* other); \
+V8_EXPORT v8hidden::Local_##sym* V8_Wrap_Local_##sym##_Copy(v8hidden::Local_##sym* other); \
 V8_EXPORT void V8_Wrap_Local_##sym##_Assign(v8hidden::Local_##sym* a, v8hidden::Local_##sym* b); \
 V8_EXPORT void V8_Wrap_Local_##sym##_Delete(v8hidden::Local_##sym* n);
 
@@ -114,7 +114,7 @@ V8_WRAP_LOCAL_VALUE_DECLS(Value);
 // Local<Object>
 V8_WRAP_LOCAL_DECLS(Object);
 
-v8hidden::Local_Object*
+V8_EXPORT v8hidden::Local_Object*
 V8_Wrap_Local_Object_New_Persistent(v8hidden::Isolate*, v8hidden::Persistent_Object*);
 
 V8_EXPORT v8hidden::Local_Value* V8_Wrap_Local_Object_GetInternalField(v8hidden::Local_Object* o, int idx);
@@ -127,11 +127,9 @@ V8_EXPORT int V8_Wrap_Local_Object_InternalFieldCount(v8hidden::Local_Object* o)
 
 V8_EXPORT v8hidden::Local_Object* V8_Wrap_Local_Object_New(v8hidden::Isolate* i, double val);
 
-v8hidden::Local_Boolean* V8_Local_Object_To_Boolean(v8hidden::Local_Object* num);
-
 V8_EXPORT bool V8_Wrap_Local_Object_IsEmpty(v8hidden::Local_Object* l);
 
-v8hidden::Local_Value*
+V8_EXPORT v8hidden::Local_Value*
 V8_Wrap_Local_Object_Get_String(v8hidden::Local_Object*, v8hidden::Local_String*);
 
 V8_EXPORT void V8_Wrap_Local_Object_SetPrototype(v8hidden::Local_Object*, v8hidden::Local_Value*);
@@ -150,7 +148,7 @@ V8_EXPORT v8hidden::Local_Value* V8_Wrap_Local_Object_To_Local_Value(v8hidden::L
 // Local<Function>
 V8_WRAP_LOCAL_DECLS(Function);
 
-v8hidden::Local_Value*
+V8_EXPORT v8hidden::Local_Value*
 V8_Wrap_Local_Function_Get_String(v8hidden::Local_Function*, v8hidden::Local_String*);
 
 // Number
@@ -163,7 +161,7 @@ V8_EXPORT void V8_Wrap_Local_Number_Assign(v8hidden::Local_Number* a, v8hidden::
 
 V8_EXPORT void V8_Wrap_Local_Number_Delete(v8hidden::Local_Number* n);
 
-v8hidden::Local_Boolean* V8_Local_Number_To_Boolean(v8hidden::Local_Number* num);
+V8_EXPORT v8hidden::Local_Boolean* V8_Local_Number_To_Boolean(v8hidden::Local_Number* num);
 
 V8_EXPORT v8hidden::Local_Value* V8_Wrap_Local_Number_To_Local_Value(v8hidden::Local_Number* n);
 
@@ -205,7 +203,7 @@ V8_EXPORT v8hidden::HandleScope* V8_Wrap_Create_Handle_Scope(v8hidden::Isolate* 
 
 V8_EXPORT void V8_Wrap_Delete_Handle_Scope(v8hidden::HandleScope* h);
 
-void *V8_Wrap_External_Cast_Value(v8hidden::Local_Value* v);
+V8_EXPORT void *V8_Wrap_External_Cast_Value(v8hidden::Local_Value* v);
 
 V8_EXPORT v8hidden::Local_External* V8_Wrap_Local_External_New(v8hidden::Isolate* i, void* v);
 
@@ -263,15 +261,15 @@ V8_WRAP_LOCAL_DECLS(Float32Array);
 V8_WRAP_LOCAL_DECLS(Uint8Array);
 
 // FunctionCallbackInfo<Value>
-v8hidden::Local_Value*
+V8_EXPORT v8hidden::Local_Value*
 V8_Wrap_FunctionCallbackInfo_Value_subscript(const v8hidden::FunctionCallbackInfo_Value* v, int i);
 
 V8_EXPORT int V8_Wrap_FunctionCallbackInfo_Value_Length(const v8hidden::FunctionCallbackInfo_Value* v);
 
-v8hidden::Local_Object*
+V8_EXPORT v8hidden::Local_Object*
 V8_Wrap_FunctionCallbackInfo_Value_This(const v8hidden::FunctionCallbackInfo_Value* v);
 
-v8hidden::ReturnValue_Value*
+V8_EXPORT v8hidden::ReturnValue_Value*
 V8_Wrap_FunctionCallbackInfo_Value_GetReturnValue(const v8hidden::FunctionCallbackInfo_Value* v);
 
 V8_EXPORT bool V8_Wrap_FunctionCallbackInfo_Value_IsConstructCall(const v8hidden::FunctionCallbackInfo_Value* v);

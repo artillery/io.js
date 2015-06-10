@@ -216,10 +216,6 @@ void V8_Wrap_Local_Object_Delete(v8hidden::Local_Object* l) {
   delete l;
 }
 
-v8hidden::Local_Boolean* V8_Local_Object_To_Boolean(v8hidden::Local_Object* num) {
-  return new v8::Local<Boolean>((*num)->ToBoolean());
-}
-
 bool V8_Wrap_Local_Object_IsEmpty(v8hidden::Local_Object* l) {
   return l->IsEmpty();
 }

@@ -344,6 +344,7 @@
 
         [ 'OS=="win"', {
           'sources': [
+            'deps/v8/src/v8-wrap.cc',
             'src/res/node.rc',
           ],
           'defines!': [
