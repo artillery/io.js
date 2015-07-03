@@ -973,7 +973,6 @@ source_set("v8_base") {
     "src/utils.h",
     "src/v8.cc",
     "src/v8.h",
-    "src/v8-wrap.cc",
     "src/v8memory.h",
     "src/v8threads.cc",
     "src/v8threads.h",
@@ -1260,7 +1259,7 @@ source_set("v8_base") {
 
   if (is_win) {
     # TODO(jschuh): crbug.com/167187 fix size_t to int truncations.
-    cflags = [ "/wd4267" ]
+    cflags = [ "/wd4267", "/Zc:sizedDealloc-" ]
   }
 
   if (v8_enable_i18n_support) {

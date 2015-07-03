@@ -34,6 +34,17 @@
     'mksnapshot_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)mksnapshot<(EXECUTABLE_SUFFIX)',
   },
   'includes': ['../../build/toolchain.gypi', '../../build/features.gypi'],
+  'conditions': [
+    ['OS=="win"', {
+      'variables': {
+        'gyp_generators': '<!(echo $GYP_GENERATORS)',
+      },
+      'msvs_disabled_warnings': [4351, 4355, 4800],
+      'cflags': [
+        '/Zc:sizedDealloc-'
+      ]
+    }],
+  ],
   'targets': [
     {
       'target_name': 'v8',
@@ -882,7 +893,6 @@
         '../../src/utils.cc',
         '../../src/utils.h',
         '../../src/v8.cc',
-        '../../src/v8-wrap.cc',
         '../../src/v8.h',
         '../../src/v8memory.h',
         '../../src/v8threads.cc',
@@ -1254,6 +1264,9 @@
             'gyp_generators': '<!(echo $GYP_GENERATORS)',
           },
           'msvs_disabled_warnings': [4351, 4355, 4800],
+          'cflags': [
+            '/Zc:sizedDealloc-'
+          ]
         }],
         ['component=="shared_library"', {
           'defines': [
