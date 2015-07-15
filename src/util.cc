@@ -12,7 +12,7 @@ char* ToUtf8Value(v8::Isolate* isolate, v8::Handle<v8::Value> value) {
     return nullptr;
 
   // Allocate enough space to include the null terminator
-  size_t len = StringBytes::StorageSize(string_value, UTF8) + 1;
+  size_t len = StringBytes::StorageSize(isolate, string_value, UTF8) + 1;
   char* res = static_cast<char*>(malloc(len));
 
   const int flags =
