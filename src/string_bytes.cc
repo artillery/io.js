@@ -166,13 +166,13 @@ size_t base64_decode(char* buf,
   while (src < srcEnd && dst < dstEnd) {
     int remaining = srcEnd - src;
 
-    while (unbase64(*src) < 0 && src < srcEnd)
+    while (src < srcEnd && unbase64(*src) < 0)
       src++, remaining--;
     if (remaining == 0 || *src == '=')
       break;
     a = unbase64(*src++);
 
-    while (unbase64(*src) < 0 && src < srcEnd)
+    while (src < srcEnd && unbase64(*src) < 0)
       src++, remaining--;
     if (remaining <= 1 || *src == '=')
       break;
@@ -182,7 +182,7 @@ size_t base64_decode(char* buf,
     if (dst == dstEnd)
       break;
 
-    while (unbase64(*src) < 0 && src < srcEnd)
+    while (src < srcEnd && unbase64(*src) < 0)
       src++, remaining--;
     if (remaining <= 2 || *src == '=')
       break;
@@ -192,7 +192,7 @@ size_t base64_decode(char* buf,
     if (dst == dstEnd)
       break;
 
-    while (unbase64(*src) < 0 && src < srcEnd)
+    while (src < srcEnd && unbase64(*src) < 0)
       src++, remaining--;
     if (remaining <= 3 || *src == '=')
       break;
