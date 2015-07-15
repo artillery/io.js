@@ -4407,6 +4407,9 @@ void ECDH::Initialize(Environment* env, Local<Object> target) {
 void ECDH::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
+  ClearErrorOnReturn clear_error_on_return;
+  (void) &clear_error_on_return;  // Silence compiler warning.
+
   // TODO(indutny): Support raw curves?
   CHECK(args[0]->IsString());
   node::Utf8Value curve(env->isolate(), args[0]);
@@ -4426,6 +4429,9 @@ void ECDH::New(const FunctionCallbackInfo<Value>& args) {
 void ECDH::GenerateKeys(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
+  ClearErrorOnReturn clear_error_on_return;
+  (void) &clear_error_on_return;  // Silence compiler warning.
+
   ECDH* ecdh = Unwrap<ECDH>(args.Holder());
 
   if (!EC_KEY_generate_key(ecdh->key_))
@@ -4438,6 +4444,9 @@ void ECDH::GenerateKeys(const FunctionCallbackInfo<Value>& args) {
 EC_POINT* ECDH::BufferToPoint(char* data, size_t len) {
   EC_POINT* pub;
   int r;
+
+  ClearErrorOnReturn clear_error_on_return;
+  (void) &clear_error_on_return;  // Silence compiler warning.
 
   pub = EC_POINT_new(group_);
   if (pub == nullptr) {
@@ -4466,6 +4475,9 @@ EC_POINT* ECDH::BufferToPoint(char* data, size_t len) {
 
 void ECDH::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+
+  ClearErrorOnReturn clear_error_on_return;
+  (void) &clear_error_on_return;  // Silence compiler warning.
 
   THROW_AND_RETURN_IF_NOT_BUFFER(args[0]);
 
@@ -4496,6 +4508,9 @@ void ECDH::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
 
 void ECDH::GetPublicKey(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+
+  ClearErrorOnReturn clear_error_on_return;
+  (void) &clear_error_on_return;  // Silence compiler warning.
 
   // Conversion form
   CHECK_EQ(args.Length(), 1);
@@ -4535,6 +4550,9 @@ void ECDH::GetPublicKey(const FunctionCallbackInfo<Value>& args) {
 void ECDH::GetPrivateKey(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
+  ClearErrorOnReturn clear_error_on_return;
+  (void) &clear_error_on_return;  // Silence compiler warning.
+
   ECDH* ecdh = Unwrap<ECDH>(args.Holder());
 
   if (!ecdh->generated_)
@@ -4562,6 +4580,9 @@ void ECDH::GetPrivateKey(const FunctionCallbackInfo<Value>& args) {
 void ECDH::SetPrivateKey(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
+  ClearErrorOnReturn clear_error_on_return;
+  (void) &clear_error_on_return;  // Silence compiler warning.
+
   ECDH* ecdh = Unwrap<ECDH>(args.Holder());
 
   THROW_AND_RETURN_IF_NOT_BUFFER(args[0]);
@@ -4584,6 +4605,9 @@ void ECDH::SetPrivateKey(const FunctionCallbackInfo<Value>& args) {
 
 void ECDH::SetPublicKey(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+
+  ClearErrorOnReturn clear_error_on_return;
+  (void) &clear_error_on_return;  // Silence compiler warning.
 
   ECDH* ecdh = Unwrap<ECDH>(args.Holder());
 
