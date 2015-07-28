@@ -3312,6 +3312,19 @@ class V8_EXPORT ArrayBuffer : public Object {
       ArrayBufferCreationMode mode = ArrayBufferCreationMode::kExternalized);
 
   /**
+   * ------====== ADDED BY ARTILLERY ======------
+   * Create a non-external array from a backing store that was obtained from a call to
+   * ArrayBuffer::Externalize. The source array buffer should also have been neutered.
+   * It is the caller's responsibility to ensure that an externalized
+   * buffer is not re-used in multiple calls to NewNonExternal, or use-after-free and
+   * double-deletes will result.
+   *
+   * With some work, we could make some basic compile-time guarantees against such errors,
+   * but as this is only used in one place, I'm forgoing it for now.
+   */
+  static Local<ArrayBuffer> NewNonExternal(Isolate* isolate, void* data, size_t byte_length);
+
+  /**
    * Returns true if ArrayBuffer is extrenalized, that is, does not
    * own its memory block.
    */
