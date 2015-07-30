@@ -182,6 +182,8 @@ class Environment;
 
 NODE_EXTERN extern bool no_deprecation;
 
+NODE_EXTERN void CleanupWorkerContexts();
+
 NODE_EXTERN int Start(int argc, char *argv[],
                       void(*loop)(v8::Platform*, v8::Isolate*, uv_loop_s*, Environment*),
                       void(*loadExtensions)(v8::Isolate*, v8::Local<v8::Object> global));
