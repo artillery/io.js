@@ -1,4 +1,5 @@
 #include "worker.h"
+#include "bson.h"
 
 #include "node.h"
 #include "node_internals.h"
@@ -142,16 +143,52 @@ void WorkerContext::New(const FunctionCallbackInfo<Value>& args) {
 }
 
 void WorkerContext::PostMessageToOwner(WorkerMessage* message) {
-  if (termination_kind() != NONE) {
-    delete message;
-    return;
-  }
-
   if (!to_owner_messages_primary_.PushBack(message)) {
     ScopedLock::Mutex lock(to_owner_messages_mutex());
     to_owner_messages_backup_.PushBack(message);
   }
   owner_notifications()->Notify();
+}
+
+static std::vector<Local<ArrayBuffer>> populateTransferables(Local<Value> transferablesArg) {
+  std::vector<Local<ArrayBuffer>> ret;
+
+  Local<Array> array = Local<Array>::Cast(transferablesArg->ToObject());
+
+  ret.reserve(array->Length());
+  for (unsigned int j = 0; j < array->Length(); j++) {
+    Local<Value> element = array->Get(j);
+    // TODO: Validate this earlier.
+    CHECK(element->IsArrayBuffer());
+    ret.push_back(Local<ArrayBuffer>::Cast(element));
+  }
+  return ret;
+}
+
+WorkerMessage* WorkerContext::SerializePostMessage(Isolate* i, const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[1]->IsArray());
+  CHECK(args[2]->IsInt32());
+
+  BSON bson(i);
+  std::vector<Local<ArrayBuffer>> transferables = populateTransferables(args[1]);
+
+  size_t object_size = 0;
+  Local<Object> object = Object::New(i);
+
+  object->Set(0, args[0]);
+
+  BSONSerializer<CountStream> counter(i, &bson, false, false, &transferables);
+  counter.SerializeDocument(object);
+  object_size = counter.GetSerializeSize();
+
+  char* buffer = static_cast<char*>(malloc(object_size));
+
+  BSONSerializer<DataStream> data(i, &bson, false, false, buffer, &transferables);
+  data.SerializeDocument(object);
+
+  WorkerMessageType message_type =
+      static_cast<WorkerMessageType>(args[2]->Int32Value());
+  return new WorkerMessage(buffer, object_size, message_type);
 }
 
 void WorkerContext::PostMessageToOwner(
@@ -161,20 +198,20 @@ void WorkerContext::PostMessageToOwner(
   if (context == nullptr)
     return;
   CHECK_CALLED_FROM_WORKER(context);
-  CHECK(args[0]->IsString());
-  // transferList ignored for now
-  CHECK(args[1]->IsArray());
-  CHECK(args[2]->IsInt32());
-  Local<String> json = args[0].As<String>();
-  WorkerMessageType message_type =
-      static_cast<WorkerMessageType>(args[2]->Int32Value());
-  WorkerMessage* message =
-      new WorkerMessage(ToUtf8Value(context->worker_env()->isolate(), json),
-                        message_type);
-  context->PostMessageToOwner(message);
+
+  ScopedLock::Mutex term_lock(context->termination_mutex());
+
+  if (context->termination_kind() != NONE) {
+    // We can't serialize this message, but that's fine - the owner can't expect to receive messages
+    // sent after the call to terminate.
+    return;
+  }
+
+  context->PostMessageToOwner(context->SerializePostMessage(context->worker_isolate(), args));
 }
 
 void WorkerContext::PostMessageToWorker(WorkerMessage* message) {
+  ScopedLock::Mutex term_lock(termination_mutex());
   if (termination_kind() != NONE) {
     delete message;
     return;
@@ -194,18 +231,8 @@ void WorkerContext::PostMessageToWorker(
   if (context == nullptr)
     return;
   CHECK_CALLED_FROM_OWNER(context);
-  CHECK(args[0]->IsString());
-  // transferList ignored for now
-  CHECK(args[1]->IsArray());
-  CHECK(args[2]->IsInt32());
-  Local<String> json = args[0].As<String>();
-  WorkerMessageType message_type =
-      static_cast<WorkerMessageType>(args[2]->Int32Value());
-  Environment* env = Environment::GetCurrent(args);
-  WorkerMessage* message = new WorkerMessage(ToUtf8Value(env->isolate(),
-                                                         json),
-                                             message_type);
-  context->PostMessageToWorker(message);
+
+  context->PostMessageToWorker(context->SerializePostMessage(context->owner_env()->isolate(), args));
 }
 
 void WorkerContext::WrapperNew(const FunctionCallbackInfo<Value>& args) {
@@ -384,10 +411,19 @@ void WorkerContext::Terminate(bool should_emit_exit_event) {
   }
 }
 
+static Local<Value> DeserializeMessage(Isolate* isolate, WorkerMessage* message) {
+  BSON bson(isolate);
+  BSONDeserializer deserializer(isolate, &bson, message->payload(), message->size());
+  Local<Value> val = deserializer.DeserializeDocument(true);
+  CHECK(val->IsObject());
+  Local<Object> object = val->ToObject();
+  return object->Get(0);
+}
+
 bool WorkerContext::ProcessMessageToWorker(Isolate* isolate,
                                            WorkerMessage* message) {
   Local<Value> argv[] = {
-    String::NewFromUtf8(isolate, message->payload()),
+    DeserializeMessage(isolate, message),
     Integer::New(isolate, message->type())
   };
   delete message;
@@ -434,7 +470,7 @@ void WorkerContext::ProcessMessagesToWorker() {
 bool WorkerContext::ProcessMessageToOwner(Isolate* isolate,
                                           WorkerMessage* message) {
   Local<Value> argv[] = {
-    String::NewFromUtf8(isolate, message->payload()),
+    DeserializeMessage(isolate, message),
     Integer::New(isolate, message->type())
   };
   delete message;
@@ -610,7 +646,7 @@ void WorkerContext::Run() {
       Environment* env = node::CreateEnvironment(worker_isolate(),
                                                  context,
                                                  this);
-      node::LoadEnvironment(env);
+      node::LoadEnvironment(env, nullptr);
 
       Local<Value> user_data =
           v8::JSON::Parse(String::NewFromUtf8(worker_isolate(), user_data_));
