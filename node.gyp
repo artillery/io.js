@@ -100,6 +100,7 @@
       'sources': [
         'src/debug-agent.cc',
         'src/async-wrap.cc',
+        'src/bson.cc',
         'src/env.cc',
         'src/fs_event_wrap.cc',
         'src/cares_wrap.cc',
@@ -138,6 +139,7 @@
         'src/async-wrap-inl.h',
         'src/base-object.h',
         'src/base-object-inl.h',
+        'src/bson.h',
         'src/debug-agent.h',
         'src/env.h',
         'src/env-inl.h',
