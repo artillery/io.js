@@ -4400,17 +4400,19 @@ static uv_mutex_t cleanup_queue_mutex_;
 // Deleting WorkerContexts in response to their notification signals
 // will cause use-after-free inside libuv. So the final `delete this`
 // call must be made somewhere else.
-static void CleanupWorkerContexts() {
+void CleanupWorkerContexts() {
   ScopedLock::Mutex lock(&cleanup_queue_mutex_);
   while (WorkerContext* context = workaround::cleanup_queue_.PopFront())
     delete context;
 }
 
 static void Loop(v8::Platform* platform, v8::Isolate* isolate, uv_loop_t* uv_loop, Environment* env) {
+  SealHandleScope seal(isolate);
   bool more;
   do {
     v8::platform::PumpMessageLoop(platform, isolate);
-    more = uv_run(uv_loop, UV_RUN_ONCE);
+    more = uv_run(env->event_loop(), UV_RUN_ONCE);
+    CleanupWorkerContexts();
 
     if (more == false) {
       v8::platform::PumpMessageLoop(platform, isolate);
@@ -4418,8 +4420,8 @@ static void Loop(v8::Platform* platform, v8::Isolate* isolate, uv_loop_t* uv_loo
 
       // Emit `beforeExit` if the loop became alive either after emitting
       // event, or after running some callbacks.
-      more = uv_loop_alive(uv_loop);
-      if (uv_run(uv_loop, UV_RUN_NOWAIT) != 0)
+      more = uv_loop_alive(env->event_loop());
+      if (uv_run(env->event_loop(), UV_RUN_NOWAIT) != 0)
         more = true;
     }
   } while (more == true);
@@ -4487,27 +4489,6 @@ static int RunMainThread(int argc,
       loop(default_platform, isolate, env->event_loop(), env);
     } else {
       Loop(default_platform, isolate, env->event_loop(), env);
-    }
-
-    {
-      SealHandleScope seal(isolate);
-      bool more;
-      do {
-        v8::platform::PumpMessageLoop(default_platform, isolate);
-        more = uv_run(env->event_loop(), UV_RUN_ONCE);
-        CleanupWorkerContexts();
-
-        if (more == false) {
-          v8::platform::PumpMessageLoop(default_platform, isolate);
-          EmitBeforeExit(env);
-
-          // Emit `beforeExit` if the loop became alive either after emitting
-          // event, or after running some callbacks.
-          more = uv_loop_alive(env->event_loop());
-          if (uv_run(env->event_loop(), UV_RUN_NOWAIT) != 0)
-            more = true;
-        }
-      } while (more == true);
     }
 
     env->set_trace_sync_io(false);
