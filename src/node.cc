@@ -3980,26 +3980,28 @@ static uv_mutex_t cleanup_queue_mutex_;
 // Deleting WorkerContexts in response to their notification signals
 // will cause use-after-free inside libuv. So the final `delete this`
 // call must be made somewhere else.
-static void CleanupWorkerContexts() {
+void CleanupWorkerContexts() {
   ScopedLock::Mutex lock(&cleanup_queue_mutex_);
   while (WorkerContext* context = workaround::cleanup_queue_.PopFront())
     delete context;
 }
 
 static void Loop(v8::Platform* platform, v8::Isolate* isolate, uv_loop_t* uv_loop, Environment* env) {
+  SealHandleScope seal(node_isolate);
   bool more;
   do {
-    v8::platform::PumpMessageLoop(platform, isolate);
-    more = uv_run(uv_loop, UV_RUN_ONCE);
+    v8::platform::PumpMessageLoop(default_platform, node_isolate);
+    more = uv_run(env->event_loop(), UV_RUN_ONCE);
+    CleanupWorkerContexts();
 
     if (more == false) {
-      v8::platform::PumpMessageLoop(platform, isolate);
+      v8::platform::PumpMessageLoop(default_platform, node_isolate);
       EmitBeforeExit(env);
 
       // Emit `beforeExit` if the loop became alive either after emitting
       // event, or after running some callbacks.
-      more = uv_loop_alive(uv_loop);
-      if (uv_run(uv_loop, UV_RUN_NOWAIT) != 0)
+      more = uv_loop_alive(env->event_loop());
+      if (uv_run(env->event_loop(), UV_RUN_NOWAIT) != 0)
         more = true;
     }
   } while (more == true);
@@ -4015,7 +4017,7 @@ static int RunMainThread(int argc,
                            const char** argv,
                            int exec_argc,
                            const char** exec_argv,
-                           void(*loop)(v8::Platform*, v8::Isolate*, uv_loop_t*, Environment*)
+                           void(*loop)(v8::Platform*, v8::Isolate*, uv_loop_t*, Environment*),
                            void(*loadExtensions)(v8::Isolate*, v8::Local<v8::Object> global)
                            ) {
   // Fetch a reference to the main isolate, so we have a reference to it
@@ -4052,30 +4054,9 @@ static int RunMainThread(int argc,
       EnableDebug(env);
 
     if (loop != nullptr) {
-      loop(default_platform, isolate, env->event_loop(), env);
+      loop(default_platform, node_isolate, env->event_loop(), env);
     } else {
-      Loop(default_platform, isolate, env->event_loop(), env);
-    }
-
-    {
-      SealHandleScope seal(node_isolate);
-      bool more;
-      do {
-        v8::platform::PumpMessageLoop(default_platform, node_isolate);
-        more = uv_run(env->event_loop(), UV_RUN_ONCE);
-        CleanupWorkerContexts();
-
-        if (more == false) {
-          v8::platform::PumpMessageLoop(default_platform, node_isolate);
-          EmitBeforeExit(env);
-
-          // Emit `beforeExit` if the loop became alive either after emitting
-          // event, or after running some callbacks.
-          more = uv_loop_alive(env->event_loop());
-          if (uv_run(env->event_loop(), UV_RUN_NOWAIT) != 0)
-            more = true;
-        }
-      } while (more == true);
+      Loop(default_platform, node_isolate, env->event_loop(), env);
     }
 
     env->set_trace_sync_io(false);
