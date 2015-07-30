@@ -44,9 +44,9 @@ enum WorkerMessageType {
 
 class WorkerMessage {
   public:
-    WorkerMessage(char* payload,
+    WorkerMessage(char* payload, size_t size,
                   WorkerMessageType message_type = WorkerMessageType::USER)
-        : payload_(payload), message_type_(message_type) {
+        : payload_(payload), size_(size), message_type_(message_type) {
     }
 
     ~WorkerMessage() {
@@ -57,6 +57,10 @@ class WorkerMessage {
       return payload_;
     }
 
+    size_t size() const {
+      return size_;
+    }
+
     WorkerMessageType type() const {
       return message_type_;
     }
@@ -64,6 +68,7 @@ class WorkerMessage {
     ListNode<WorkerMessage> member;
   private:
     char* const payload_;
+    const size_t size_;
     WorkerMessageType message_type_;
 
     friend class WorkerContext;
@@ -132,6 +137,8 @@ class WorkerContext {
     void Run();
     void LoopEnded();
     bool LoopWouldEnd();
+    WorkerMessage* SerializePostMessage(
+        v8::Isolate* i, const v8::FunctionCallbackInfo<v8::Value>& args);
     void ProcessMessagesToOwner();
     bool ProcessMessageToOwner(v8::Isolate* isolate, WorkerMessage* message);
     void ProcessMessagesToWorker();
