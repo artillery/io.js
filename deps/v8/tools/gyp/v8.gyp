@@ -36,6 +36,11 @@
   },
   'includes': ['../../build/toolchain.gypi', '../../build/features.gypi'],
   'conditions': [
+    ['OS=="mac"', {
+      'xcode_settings': {
+        'SKIP_INSTALL': 'YES'
+      }
+    }],
     ['OS=="win"', {
       'variables': {
         'gyp_generators': '<!(echo $GYP_GENERATORS)',
