@@ -403,6 +403,10 @@
             # we need to use node's preferred "darwin" rather than gyp's preferred "mac"
             'NODE_PLATFORM="darwin"',
           ],
+          # ARTILLERY - Embedding io.js as a shared lib in the app bundle.
+          'xcode_settings': {
+            'SKIP_INSTALL': 'YES'
+          },
         }],
         [ 'OS=="freebsd"', {
           'libraries': [
