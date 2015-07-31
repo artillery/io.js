@@ -39,6 +39,11 @@
       },
     },
     'conditions': [
+      ['OS=="mac"', {
+        'xcode_settings': {
+          'SKIP_INSTALL': 'YES'
+        }
+      }],
       ['OS == "win"', {
         'defines': [
           'WIN32'
