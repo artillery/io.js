@@ -105,6 +105,11 @@
     'include_dirs': ['<@(openssl_default_include_dirs)'],
     'defines': ['<@(openssl_default_defines_all)'],
     'conditions': [
+      ['OS=="mac"', {
+        'xcode_settings': {
+          'SKIP_INSTALL': 'YES'
+        }
+      }],
       ['OS=="win"', {
         'defines': ['<@(openssl_default_defines_win)'],
         'link_settings': {

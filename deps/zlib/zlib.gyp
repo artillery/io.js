@@ -7,6 +7,11 @@
     'use_system_zlib%': 0
   },
   'conditions': [
+    ['OS=="mac"', {
+      'xcode_settings': {
+        'SKIP_INSTALL': 'YES'
+      }
+    }],
     ['use_system_zlib==0', {
       'targets': [
         {
