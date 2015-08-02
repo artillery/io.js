@@ -4049,20 +4049,7 @@ process_main_thread = uv_thread_self();
 
   CHECK_EQ(err, 0);
 
-  // Restore signal dispositions, the parent process may have changed them.
-  struct sigaction act;
-  memset(&act, 0, sizeof(act));
-
-  // The hard-coded upper limit is because NSIG is not very reliable; on Linux,
-  // it evaluates to 32, 34 or 64, depending on whether RT signals are enabled.
-  // Counting up to SIGRTMIN doesn't work for the same reason.
-  for (unsigned nr = 1; nr < 32; nr += 1) {
-    if (nr == SIGKILL || nr == SIGSTOP)
-      continue;
-    act.sa_handler = (nr == SIGPIPE) ? SIG_IGN : SIG_DFL;
-    CHECK_EQ(0, sigaction(nr, &act, nullptr));
-  }
-
+  RegisterSignalHandler(SIGPIPE, SIG_IGN);
   RegisterSignalHandler(SIGINT, SignalExit, true);
   RegisterSignalHandler(SIGTERM, SignalExit, true);
 
