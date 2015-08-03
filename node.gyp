@@ -220,7 +220,7 @@
                 './deps/openssl/openssl.gyp:openssl',
 
                 # For tests
-                './deps/openssl/openssl.gyp:openssl-cli',
+                # DISABLED FOR ARTILLERY/ATLASRUNNER - './deps/openssl/openssl.gyp:openssl-cli',
               ],
               # Do not let unused OpenSSL symbols to slip away
               'conditions': [
@@ -370,6 +370,10 @@
             # we need to use node's preferred "darwin" rather than gyp's preferred "mac"
             'NODE_PLATFORM="darwin"',
           ],
+          # ARTILLERY - Embedding io.js as a shared lib in the app bundle.
+          'xcode_settings': {
+            'SKIP_INSTALL': 'YES'
+          },
         }],
         [ 'OS=="freebsd"', {
           'libraries': [
