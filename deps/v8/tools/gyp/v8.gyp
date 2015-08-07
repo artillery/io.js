@@ -53,9 +53,32 @@
       ]
     }],
   ],
+
   'targets': [
     {
       'target_name': 'v8',
+
+      # Artillery fix -- There seems to be no way to specify this other than here.
+      'default_configuration': 'Release',
+      'configurations': {
+        'Debug': {
+          'defines': [ 'DEBUG', '_DEBUG' ],
+          'msvs_settings': {
+            'VCCLCompilerTool': {
+              'RuntimeLibrary': 3, # multi-threaded DLL debug
+            },
+          },
+        },
+        'Release': {
+          'defines': [ 'NDEBUG' ],
+          'msvs_settings': {
+            'VCCLCompilerTool': {
+              'RuntimeLibrary': 2, # multi-threaded DLL release
+            },
+          },
+        },
+      },
+
       'dependencies_traverse': 1,
       'dependencies': ['v8_maybe_snapshot'],
       'conditions': [
@@ -173,6 +196,28 @@
     },
     {
       'target_name': 'v8_snapshot',
+
+      # Artillery fix -- There seems to be no way to specify this other than here.
+      'default_configuration': 'Release',
+      'configurations': {
+        'Debug': {
+          'defines': [ 'DEBUG', '_DEBUG' ],
+          'msvs_settings': {
+            'VCCLCompilerTool': {
+              'RuntimeLibrary': 3, # multi-threaded DLL debug
+            },
+          },
+        },
+        'Release': {
+          'defines': [ 'NDEBUG' ],
+          'msvs_settings': {
+            'VCCLCompilerTool': {
+              'RuntimeLibrary': 2, # multi-threaded DLL release
+            },
+          },
+        },
+      },
+
       'type': 'static_library',
       'conditions': [
         ['want_separate_host_toolset==1', {
@@ -249,6 +294,28 @@
     },
     {
       'target_name': 'v8_nosnapshot',
+
+      # Artillery fix -- There seems to be no way to specify this other than here.
+      'default_configuration': 'Release',
+      'configurations': {
+        'Debug': {
+          'defines': [ 'DEBUG', '_DEBUG' ],
+          'msvs_settings': {
+            'VCCLCompilerTool': {
+              'RuntimeLibrary': 3, # multi-threaded DLL debug
+            },
+          },
+        },
+        'Release': {
+          'defines': [ 'NDEBUG' ],
+          'msvs_settings': {
+            'VCCLCompilerTool': {
+              'RuntimeLibrary': 2, # multi-threaded DLL release
+            },
+          },
+        },
+      },
+
       'type': 'static_library',
       'dependencies': [
         'v8_base',
@@ -281,6 +348,28 @@
     },
     {
       'target_name': 'v8_external_snapshot',
+
+      # Artillery fix -- There seems to be no way to specify this other than here.
+      'default_configuration': 'Release',
+      'configurations': {
+        'Debug': {
+          'defines': [ 'DEBUG', '_DEBUG' ],
+          'msvs_settings': {
+            'VCCLCompilerTool': {
+              'RuntimeLibrary': 3, # multi-threaded DLL debug
+            },
+          },
+        },
+        'Release': {
+          'defines': [ 'NDEBUG' ],
+          'msvs_settings': {
+            'VCCLCompilerTool': {
+              'RuntimeLibrary': 2, # multi-threaded DLL release
+            },
+          },
+        },
+      },
+
       'type': 'static_library',
       'conditions': [
         [ 'v8_use_external_startup_data==1', {
@@ -437,6 +526,28 @@
     },
     {
       'target_name': 'v8_base',
+
+      # Artillery fix -- There seems to be no way to specify this other than here.
+      'default_configuration': 'Release',
+      'configurations': {
+        'Debug': {
+          'defines': [ 'DEBUG', '_DEBUG' ],
+          'msvs_settings': {
+            'VCCLCompilerTool': {
+              'RuntimeLibrary': 3, # multi-threaded DLL debug
+            },
+          },
+        },
+        'Release': {
+          'defines': [ 'NDEBUG' ],
+          'msvs_settings': {
+            'VCCLCompilerTool': {
+              'RuntimeLibrary': 2, # multi-threaded DLL release
+            },
+          },
+        },
+      },
+
       'type': 'static_library',
       'dependencies': [
         'v8_libbase',
@@ -1618,6 +1729,28 @@
     },
     {
       'target_name': 'v8_libbase',
+
+      # Artillery fix -- There seems to be no way to specify this other than here.
+      'default_configuration': 'Release',
+      'configurations': {
+        'Debug': {
+          'defines': [ 'DEBUG', '_DEBUG' ],
+          'msvs_settings': {
+            'VCCLCompilerTool': {
+              'RuntimeLibrary': 3, # multi-threaded DLL debug
+            },
+          },
+        },
+        'Release': {
+          'defines': [ 'NDEBUG' ],
+          'msvs_settings': {
+            'VCCLCompilerTool': {
+              'RuntimeLibrary': 2, # multi-threaded DLL release
+            },
+          },
+        },
+      },
+
       'type': 'static_library',
       'variables': {
         'optimize': 'max',
@@ -1883,6 +2016,28 @@
     },
     {
       'target_name': 'v8_libplatform',
+
+      # Artillery fix -- There seems to be no way to specify this other than here.
+      'default_configuration': 'Release',
+      'configurations': {
+        'Debug': {
+          'defines': [ 'DEBUG', '_DEBUG' ],
+          'msvs_settings': {
+            'VCCLCompilerTool': {
+              'RuntimeLibrary': 3, # multi-threaded DLL debug
+            },
+          },
+        },
+        'Release': {
+          'defines': [ 'NDEBUG' ],
+          'msvs_settings': {
+            'VCCLCompilerTool': {
+              'RuntimeLibrary': 2, # multi-threaded DLL release
+            },
+          },
+        },
+      },
+
       'type': 'static_library',
       'variables': {
         'optimize': 'max',
@@ -1912,6 +2067,28 @@
     },
     {
       'target_name': 'natives_blob',
+
+      # Artillery fix -- There seems to be no way to specify this other than here.
+      'default_configuration': 'Release',
+      'configurations': {
+        'Debug': {
+          'defines': [ 'DEBUG', '_DEBUG' ],
+          'msvs_settings': {
+            'VCCLCompilerTool': {
+              'RuntimeLibrary': 3, # multi-threaded DLL debug
+            },
+          },
+        },
+        'Release': {
+          'defines': [ 'NDEBUG' ],
+          'msvs_settings': {
+            'VCCLCompilerTool': {
+              'RuntimeLibrary': 2, # multi-threaded DLL release
+            },
+          },
+        },
+      },
+
       'type': 'none',
       'conditions': [
         [ 'v8_use_external_startup_data==1', {
@@ -1970,6 +2147,28 @@
     },
     {
       'target_name': 'js2c',
+
+      # Artillery fix -- There seems to be no way to specify this other than here.
+      'default_configuration': 'Release',
+      'configurations': {
+        'Debug': {
+          'defines': [ 'DEBUG', '_DEBUG' ],
+          'msvs_settings': {
+            'VCCLCompilerTool': {
+              'RuntimeLibrary': 3, # multi-threaded DLL debug
+            },
+          },
+        },
+        'Release': {
+          'defines': [ 'NDEBUG' ],
+          'msvs_settings': {
+            'VCCLCompilerTool': {
+              'RuntimeLibrary': 2, # multi-threaded DLL release
+            },
+          },
+        },
+      },
+
       'type': 'none',
       'conditions': [
         ['want_separate_host_toolset==1', {
