@@ -659,7 +659,15 @@ void WorkerContext::Run() {
       Environment* env = node::CreateEnvironment(worker_isolate(),
                                                  context,
                                                  this);
+
+
+      worker_bson_ = new BSON(worker_isolate());
+      // To enable debugging uncomment StartDebug and EnableDebug.
+      // TODO: Control debugging of worker threads via a commandline flag.
+      //StartDebug(env, true);
       node::LoadEnvironment(env, nullptr);
+
+      //EnableDebug(env);
 
       Local<Value> user_data = v8::JSON::Parse(
           worker_isolate(), String::NewFromUtf8(worker_isolate(), user_data_)

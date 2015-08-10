@@ -188,6 +188,9 @@ NODE_EXTERN extern bool force_fips_crypto;
 
 NODE_EXTERN void CleanupWorkerContexts();
 
+NODE_EXTERN void StartDebug(Environment* env, bool wait);
+NODE_EXTERN void EnableDebug(Environment* env);
+
 NODE_EXTERN int Start(int argc, char *argv[],
                       void(*loop)(v8::Platform*, v8::Isolate*, uv_loop_s*, Environment*),
                       void(*loadExtensions)(v8::Isolate*, v8::Local<v8::Object> global));
