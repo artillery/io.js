@@ -37,22 +37,22 @@
 using namespace v8;
 using namespace node;
 
-static Local<Int32> NewInt(Isolate* i, int32_t d) { return Integer::New(i, d)->ToInt32(); }
-static Local<Uint32> NewInt(Isolate* i, uint32_t d) { return Integer::NewFromUnsigned(i, d)->ToUint32(); }
-static Local<Number> NewNum(Isolate* i, double d) { return Number::New(i, d); }
-static Local<Number> NewNum(Isolate* i, int64_t d) { return Number::New(i, d); }
-static Local<String> NewString(Isolate* i, const char* s) { return String::NewFromUtf8(i, s); }
+static Local<Int32> NewInt(Isolate* iso, int32_t d) { return Integer::New(iso, d)->ToInt32(iso); }
+static Local<Uint32> NewInt(Isolate* iso, uint32_t d) { return Integer::NewFromUnsigned(iso, d)->ToUint32(iso); }
+static Local<Number> NewNum(Isolate* iso, double d) { return Number::New(iso, d); }
+static Local<Number> NewNum(Isolate* iso, int64_t d) { return Number::New(iso, d); }
+static Local<String> NewString(Isolate* iso, const char* s) { return String::NewFromUtf8(iso, s); }
 
-static void AssignPersistent(Isolate* i, Persistent<String>& p, Local<String> s) {
-  p.Reset(i, s);
+static void AssignPersistent(Isolate* iso, Persistent<String>& p, Local<String> s) {
+  p.Reset(iso, s);
 }
 
 //===========================================================================
 
-void DataStream::WriteObjectId(const Handle<Object>& object, const Handle<String>& key)
+void DataStream::WriteObjectId(Isolate* iso, const Handle<Object>& object, const Handle<String>& key)
 {
   uint16_t buffer[12];
-  object->Get(key)->ToString()->Write(buffer, 0, 12);
+  object->Get(key)->ToString(iso)->Write(buffer, 0, 12);
   for(uint32_t i = 0; i < 12; ++i)
   {
     *p++ = (char) buffer[i];
@@ -100,7 +100,7 @@ void DataStream::CheckKey(const Local<String>& keyName)
 
 // Data points to start of element list, length is length of entire document including '\0' but excluding initial size
 BSONDeserializer::BSONDeserializer(Isolate* i_, BSON* aBson, char* data, size_t length)
-: i(i_),
+: iso(i_),
   bson(aBson),
   pStart(data),
   p(data),
@@ -110,7 +110,7 @@ BSONDeserializer::BSONDeserializer(Isolate* i_, BSON* aBson, char* data, size_t 
 }
 
 BSONDeserializer::BSONDeserializer(BSONDeserializer& parentSerializer, size_t length)
-: i(parentSerializer.i),
+: iso(parentSerializer.iso),
   bson(parentSerializer.bson),
   pStart(parentSerializer.p),
   p(parentSerializer.p),
@@ -126,9 +126,9 @@ Handle<Value> BSONDeserializer::ReadCString()
   char* start = p;
   while(*p++ && (p < pEnd)) { }
   if(p > pEnd) {
-    return Null(i);
+    return Null(iso);
   }
-  return String::NewFromUtf8(i, start, String::kNormalString, p - start - 1);
+  return String::NewFromUtf8(iso, start, String::kNormalString, p - start - 1);
 }
 
 int32_t BSONDeserializer::ReadRegexOptions()
@@ -163,7 +163,7 @@ Local<String> BSONDeserializer::ReadString()
   uint32_t length = ReadUInt32();
   char* start = p;
   p += length;
-  return String::NewFromUtf8(i, start, String::kNormalString, length - 1);
+  return String::NewFromUtf8(iso, start, String::kNormalString, length - 1);
 }
 
 Local<String> BSONDeserializer::ReadObjectId()
@@ -173,7 +173,7 @@ Local<String> BSONDeserializer::ReadObjectId()
   {
     objectId[i] = *reinterpret_cast<unsigned char*>(p++);
   }
-  return String::NewFromTwoByte(i, objectId, String::kNormalString, 12);
+  return String::NewFromTwoByte(iso, objectId, String::kNormalString, 12);
 }
 
 Handle<Value> BSONDeserializer::DeserializeDocument(bool promoteLongs)
@@ -187,7 +187,7 @@ Handle<Value> BSONDeserializer::DeserializeDocument(bool promoteLongs)
 
 Handle<Value> BSONDeserializer::DeserializeDocumentInternal(bool promoteLongs)
 {
-  Local<Object> returnObject = Object::New(i);
+  Local<Object> returnObject = Object::New(iso);
 
   while(HasMoreData())
   {
@@ -202,10 +202,14 @@ Handle<Value> BSONDeserializer::DeserializeDocumentInternal(bool promoteLongs)
 
   // From JavaScript:
   // if(object['$id'] != null) object = new DBRef(object['$ref'], object['$id'], object['$db']);
-  if(returnObject->Has(NewFromPersistent(i, bson->_dbRefIdRefString)))
+  if(returnObject->Has(NewFromPersistent(iso, bson->_dbRefIdRefString)))
   {
-    Local<Value> argv[] = { returnObject->Get(NewFromPersistent(i, bson->_dbRefRefString)), returnObject->Get(NewFromPersistent(i, bson->_dbRefIdRefString)), returnObject->Get(NewFromPersistent(i, bson->_dbRefDbRefString)) };
-    return NewFromPersistent(i, bson->dbrefConstructor)->NewInstance(3, argv);
+    Local<Value> argv[] = {
+      returnObject->Get(NewFromPersistent(iso, bson->_dbRefRefString)),
+      returnObject->Get(NewFromPersistent(iso, bson->_dbRefIdRefString)),
+      returnObject->Get(NewFromPersistent(iso, bson->_dbRefDbRefString))
+    };
+    return NewFromPersistent(iso, bson->dbrefConstructor)->NewInstance(3, argv);
   }
   else
   {
@@ -224,7 +228,7 @@ Handle<Value> BSONDeserializer::DeserializeArray(bool promoteLongs)
 
 Handle<Value> BSONDeserializer::DeserializeArrayInternal(bool promoteLongs)
 {
-  Local<Array> returnArray = Array::New(i);
+  Local<Array> returnArray = Array::New(iso);
 
   while(HasMoreData())
   {
@@ -269,42 +273,42 @@ Handle<Value> BSONDeserializer::DeserializeValue(BsonType type, bool promoteLong
     return ReadString();
 
   case BSON_TYPE_INT:
-    return NewInt(i, ReadInt32());
+    return NewInt(iso, ReadInt32());
 
   case BSON_TYPE_NUMBER:
-    return NewNum(i, ReadDouble());
+    return NewNum(iso, ReadDouble());
 
   case BSON_TYPE_NULL:
-    return Null(i);
+    return Null(iso);
 
   case BSON_TYPE_UNDEFINED:
-    return Undefined(i);
+    return Undefined(iso);
 
   case BSON_TYPE_TIMESTAMP:
     {
       int32_t lowBits = ReadInt32();
       int32_t highBits = ReadInt32();
-      Local<Value> argv[] = { NewInt(i, lowBits), NewInt(i, highBits) };
-      return NewFromPersistent(i, bson->timestampConstructor)->NewInstance(2, argv);
+      Local<Value> argv[] = { NewInt(iso, lowBits), NewInt(iso, highBits) };
+      return NewFromPersistent(iso, bson->timestampConstructor)->NewInstance(2, argv);
     }
 
   case BSON_TYPE_BOOLEAN:
-    return (ReadByte() != 0) ? True(i) : False(i);
+    return (ReadByte() != 0) ? True(iso) : False(iso);
 
   case BSON_TYPE_REGEXP:
     {
       const Handle<Value>& regex = ReadCString();
       if(regex->IsNull()) ThrowAllocatedStringException(64, "Bad BSON Document: illegal CString");
       int32_t options = ReadRegexOptions();
-      return RegExp::New(regex->ToString(), (RegExp::Flags) options);
+      return RegExp::New(regex->ToString(iso), (RegExp::Flags) options);
     }
 
   case BSON_TYPE_CODE:
     {
       const Local<Value>& code = ReadString();
-      const Local<Value>& scope = Object::New(i);
+      const Local<Value>& scope = Object::New(iso);
       Local<Value> argv[] = { code, scope };
-      return NewFromPersistent(i, bson->codeConstructor)->NewInstance(2, argv);
+      return NewFromPersistent(iso, bson->codeConstructor)->NewInstance(2, argv);
     }
 
   case BSON_TYPE_CODE_W_SCOPE:
@@ -312,14 +316,14 @@ Handle<Value> BSONDeserializer::DeserializeValue(BsonType type, bool promoteLong
       ReadUInt32();
       const Local<Value>& code = ReadString();
       const Handle<Value>& scope = DeserializeDocument(promoteLongs);
-      Local<Value> argv[] = { code, scope->ToObject() };
-      return NewFromPersistent(i, bson->codeConstructor)->NewInstance(2, argv);
+      Local<Value> argv[] = { code, scope->ToObject(iso) };
+      return NewFromPersistent(iso, bson->codeConstructor)->NewInstance(2, argv);
     }
 
   case BSON_TYPE_OID:
     {
       Local<Value> argv[] = { ReadObjectId() };
-      return NewFromPersistent(i, bson->objectIDConstructor)->NewInstance(1, argv);
+      return NewFromPersistent(iso, bson->objectIDConstructor)->NewInstance(1, argv);
     }
 
   case BSON_TYPE_BINARY:
@@ -330,11 +334,11 @@ Handle<Value> BSONDeserializer::DeserializeValue(BsonType type, bool promoteLong
         length = ReadInt32();
       }
 
-      Local<Object> buffer = Buffer::New(i, p, length);
+      Local<Object> buffer = Buffer::New(iso, p, length);
       p += length;
 
-      Handle<Value> argv[] = { buffer, NewInt(i, subType) };
-      return NewFromPersistent(i, bson->binaryConstructor)->NewInstance(2, argv);
+      Handle<Value> argv[] = { buffer, NewInt(iso, subType) };
+      return NewFromPersistent(iso, bson->binaryConstructor)->NewInstance(2, argv);
     }
 
   case BSON_TYPE_LONG:
@@ -351,17 +355,17 @@ Handle<Value> BSONDeserializer::DeserializeValue(BsonType type, bool promoteLong
           p -= 8;
           // Read the 64 bit value
           int64_t finalValue = (int64_t) ReadInt64();
-          return NewNum(i, finalValue);
+          return NewNum(iso, finalValue);
         }
       }
 
       // Decode the Long value
-      Local<Value> argv[] = { NewInt(i, lowBits), NewInt(i, highBits) };
-      return NewFromPersistent(i, bson->longConstructor)->NewInstance(2, argv);
+      Local<Value> argv[] = { NewInt(iso, lowBits), NewInt(iso, highBits) };
+      return NewFromPersistent(iso, bson->longConstructor)->NewInstance(2, argv);
     }
 
   case BSON_TYPE_DATE:
-    return Date::New(i, ReadInt64());
+    return Date::New(iso, ReadInt64());
 
   case BSON_TYPE_ARRAY:
     return DeserializeArray(promoteLongs);
@@ -373,14 +377,14 @@ Handle<Value> BSONDeserializer::DeserializeValue(BsonType type, bool promoteLong
     {
       const Local<String>& string = ReadString();
       Local<Value> argv[] = { string };
-      return NewFromPersistent(i, bson->symbolConstructor)->NewInstance(1, argv);
+      return NewFromPersistent(iso, bson->symbolConstructor)->NewInstance(1, argv);
     }
 
   case BSON_TYPE_MIN_KEY:
-    return NewFromPersistent(i, bson->minKeyConstructor)->NewInstance();
+    return NewFromPersistent(iso, bson->minKeyConstructor)->NewInstance();
 
   case BSON_TYPE_MAX_KEY:
-    return NewFromPersistent(i, bson->maxKeyConstructor)->NewInstance();
+    return NewFromPersistent(iso, bson->maxKeyConstructor)->NewInstance();
 
   case BSON_TYPE_TYPED_ARRAY:
     {
@@ -396,16 +400,16 @@ Handle<Value> BSONDeserializer::DeserializeValue(BsonType type, bool promoteLong
       if (pointer == NULL)
       {
         // ArrayBuffer was not transferred, must allocate new one.
-        buffer = ArrayBuffer::New(i, bufferLength);
+        buffer = ArrayBuffer::New(iso, bufferLength);
         unsigned char* p = static_cast<unsigned char*>(buffer->GetContents().Data());
-        if (p == NULL) { return Null(i); }
+        if (p == NULL) { return Null(iso); }
         for (size_t i = 0; i < bufferLength; i++) { p[i] = ReadByte(); }
       }
       else
       {
         // Create buffer from existing memory. The array buffer has been externalized and neutered
         // when the array was transferred here.
-        buffer = ArrayBuffer::NewNonExternal(i, pointer, bufferLength);
+        buffer = ArrayBuffer::NewNonExternal(iso, pointer, bufferLength);
       }
 
       switch (arrayType) {
@@ -420,63 +424,63 @@ Handle<Value> BSONDeserializer::DeserializeValue(BsonType type, bool promoteLong
         case TYPED_ARRAY_FLOAT64:       return Float64Array::New(buffer, viewOffset, elementCount);
       }
       ThrowAllocatedStringException(64, "Unhandled TypedArrayType arrayType: %d", arrayType);
-      return Null(i);
+      return Null(iso);
     }
 
   default:
     ThrowAllocatedStringException(64, "Unhandled BSON Type: %d", type);
   }
 
-  return Null(i);
+  return Null(iso);
 }
 
 Persistent<FunctionTemplate> BSON::constructor_template;
 
-BSON::BSON(Isolate* i)
+BSON::BSON(Isolate* iso)
 {
   // Setup pre-allocated comparision objects
-  AssignPersistent(i, _bsontypeString, NewString(i, "_bsontype"));
-  AssignPersistent(i, _longLowString, NewString(i, "low_"));
-  AssignPersistent(i, _longHighString, NewString(i, "high_"));
-  AssignPersistent(i, _objectIDidString, NewString(i, "id"));
-  AssignPersistent(i, _binaryPositionString, NewString(i, "position"));
-  AssignPersistent(i, _binarySubTypeString, NewString(i, "sub_type"));
-  AssignPersistent(i, _binaryBufferString, NewString(i, "buffer"));
-  AssignPersistent(i, _doubleValueString, NewString(i, "value"));
-  AssignPersistent(i, _symbolValueString, NewString(i, "value"));
-  AssignPersistent(i, _dbRefRefString, NewString(i, "$ref"));
-  AssignPersistent(i, _dbRefIdRefString, NewString(i, "$id"));
-  AssignPersistent(i, _dbRefDbRefString, NewString(i, "$db"));
-  AssignPersistent(i, _dbRefNamespaceString, NewString(i, "namespace"));
-  AssignPersistent(i, _dbRefDbString, NewString(i, "db"));
-  AssignPersistent(i, _dbRefOidString, NewString(i, "oid"));
-  AssignPersistent(i, _codeCodeString, NewString(i, "code"));
-  AssignPersistent(i, _codeScopeString, NewString(i, "scope"));
-  AssignPersistent(i, _toBSONString, NewString(i, "toBSON"));
+  AssignPersistent(iso, _bsontypeString, NewString(iso, "_bsontype"));
+  AssignPersistent(iso, _longLowString, NewString(iso, "low_"));
+  AssignPersistent(iso, _longHighString, NewString(iso, "high_"));
+  AssignPersistent(iso, _objectIDidString, NewString(iso, "id"));
+  AssignPersistent(iso, _binaryPositionString, NewString(iso, "position"));
+  AssignPersistent(iso, _binarySubTypeString, NewString(iso, "sub_type"));
+  AssignPersistent(iso, _binaryBufferString, NewString(iso, "buffer"));
+  AssignPersistent(iso, _doubleValueString, NewString(iso, "value"));
+  AssignPersistent(iso, _symbolValueString, NewString(iso, "value"));
+  AssignPersistent(iso, _dbRefRefString, NewString(iso, "$ref"));
+  AssignPersistent(iso, _dbRefIdRefString, NewString(iso, "$id"));
+  AssignPersistent(iso, _dbRefDbRefString, NewString(iso, "$db"));
+  AssignPersistent(iso, _dbRefNamespaceString, NewString(iso, "namespace"));
+  AssignPersistent(iso, _dbRefDbString, NewString(iso, "db"));
+  AssignPersistent(iso, _dbRefOidString, NewString(iso, "oid"));
+  AssignPersistent(iso, _codeCodeString, NewString(iso, "code"));
+  AssignPersistent(iso, _codeScopeString, NewString(iso, "scope"));
+  AssignPersistent(iso, _toBSONString, NewString(iso, "toBSON"));
 
-  AssignPersistent(i, longString, NewString(i, "Long"));
-  AssignPersistent(i, objectIDString, NewString(i, "ObjectID"));
-  AssignPersistent(i, binaryString, NewString(i, "Binary"));
-  AssignPersistent(i, codeString, NewString(i, "Code"));
-  AssignPersistent(i, dbrefString, NewString(i, "DBRef"));
-  AssignPersistent(i, symbolString, NewString(i, "Symbol"));
-  AssignPersistent(i, doubleString, NewString(i, "Double"));
-  AssignPersistent(i, timestampString, NewString(i, "Timestamp"));
-  AssignPersistent(i, minKeyString, NewString(i, "MinKey"));
-  AssignPersistent(i, maxKeyString, NewString(i, "MaxKey"));
+  AssignPersistent(iso, longString, NewString(iso, "Long"));
+  AssignPersistent(iso, objectIDString, NewString(iso, "ObjectID"));
+  AssignPersistent(iso, binaryString, NewString(iso, "Binary"));
+  AssignPersistent(iso, codeString, NewString(iso, "Code"));
+  AssignPersistent(iso, dbrefString, NewString(iso, "DBRef"));
+  AssignPersistent(iso, symbolString, NewString(iso, "Symbol"));
+  AssignPersistent(iso, doubleString, NewString(iso, "Double"));
+  AssignPersistent(iso, timestampString, NewString(iso, "Timestamp"));
+  AssignPersistent(iso, minKeyString, NewString(iso, "MinKey"));
+  AssignPersistent(iso, maxKeyString, NewString(iso, "MaxKey"));
 }
 
-Local<Object> BSON::GetSerializeObject(Isolate* i, const Handle<Value>& argValue)
+Local<Object> BSON::GetSerializeObject(Isolate* iso, const Handle<Value>& argValue)
 {
-  Local<Object> object = argValue->ToObject();
-  if(object->Has(NewFromPersistent(i, _toBSONString)))
+  Local<Object> object = argValue->ToObject(iso);
+  if(object->Has(NewFromPersistent(iso, _toBSONString)))
   {
-    const Local<Value>& toBSON = object->Get(NewFromPersistent(i, _toBSONString));
+    const Local<Value>& toBSON = object->Get(NewFromPersistent(iso, _toBSONString));
     if(!toBSON->IsFunction()) ThrowAllocatedStringException(64, "toBSON is not a function");
 
     Local<Value> result = Local<Function>::Cast(toBSON)->Call(object, 0, NULL);
     if(!result->IsObject()) ThrowAllocatedStringException(64, "toBSON function did not return an object");
-    return result->ToObject();
+    return result->ToObject(iso);
   }
   else
   {
