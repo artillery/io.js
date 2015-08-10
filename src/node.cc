@@ -3404,7 +3404,7 @@ static void DispatchMessagesDebugAgentCallback(Environment* env) {
 }
 
 
-static void StartDebug(Environment* env, bool wait) {
+void StartDebug(Environment* env, bool wait) {
   CHECK(!debugger_running);
 
   env->debugger_agent()->set_dispatch_handler(
@@ -3419,7 +3419,7 @@ static void StartDebug(Environment* env, bool wait) {
 
 
 // Called from the main thread.
-static void EnableDebug(Environment* env) {
+void EnableDebug(Environment* env) {
   CHECK(debugger_running);
 
   // Send message to enable debug in workers
