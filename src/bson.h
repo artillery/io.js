@@ -131,7 +131,7 @@ private:
   Persistent<String> _codeScopeString;
   Persistent<String> _toBSONString;
 
-public:	Local<Object> GetSerializeObject(Isolate* i, const Handle<Value>& object);
+public:	Local<Object> GetSerializeObject(Isolate* iso, const Handle<Value>& object);
 
   template<typename T> friend class BSONSerializer;
   friend class BSONDeserializer;
@@ -157,7 +157,7 @@ public:
   void	WriteDouble(const Handle<Object>&, const Handle<String>&) { count += 8; }
   void	WriteUInt32String(uint32_t name)						{ char buffer[32]; count += sprintf(buffer, "%u", name) + 1; }
   void	WriteLengthPrefixedString(const Local<String>& value)	{ count += value->Utf8Length()+5; }
-  void	WriteObjectId(const Handle<Object>& object, const Handle<String>& key)				{ count += 12; }
+  void	WriteObjectId(Isolate* iso, const Handle<Object>& object, const Handle<String>& key)				{ count += 12; }
   void	WriteString(const Local<String>& value)					{ count += value->Utf8Length() + 1; }	// This returns the number of bytes exclusive of the NULL terminator
   void	WriteData(const char* data, size_t length)				{ count += length; }
   void	WritePointer(void*)										{ count += sizeof(void*); }
@@ -202,7 +202,7 @@ public:
   void	WriteDouble(const Handle<Object>& object, const Handle<String>& key) { WriteDouble(object->Get(key)); }
   void	WriteUInt32String(uint32_t name)						{ p += sprintf(p, "%u", name) + 1;			}
   void	WriteLengthPrefixedString(const Local<String>& value)	{ WriteInt32(value->Utf8Length()+1); WriteString(value); }
-  void	WriteObjectId(const Handle<Object>& object, const Handle<String>& key);
+  void	WriteObjectId(Isolate* iso, const Handle<Object>& object, const Handle<String>& key);
   void	WriteString(const Local<String>& value)					{ p += value->WriteUtf8(p); }		// This returns the number of bytes inclusive of the NULL terminator.
   void	WriteData(const char* data, size_t length)				{ memcpy(p, data, length); p += length; }
 
@@ -232,12 +232,12 @@ private:
 
 public:
   BSONSerializer(Isolate* i_, BSON* aBson, bool aCheckKeys, bool aSerializeFunctions, const std::vector<Local<ArrayBuffer> >* aTransferables)
-  : Inherited(), i(i_), checkKeys(aCheckKeys), serializeFunctions(aSerializeFunctions), bson(aBson), transferables(aTransferables)
+  : Inherited(), iso(i_), checkKeys(aCheckKeys), serializeFunctions(aSerializeFunctions), bson(aBson), transferables(aTransferables)
   {
     if (transferables != NULL) { transferableContents.resize(transferables->size(), NULL); }
   }
   BSONSerializer(Isolate* i_, BSON* aBson, bool aCheckKeys, bool aSerializeFunctions, char* parentParam, const std::vector<Local<ArrayBuffer> >* aTransferables)
-  : Inherited(parentParam), i(i_), checkKeys(aCheckKeys), serializeFunctions(aSerializeFunctions), bson(aBson), transferables(aTransferables)
+  : Inherited(parentParam), iso(i_), checkKeys(aCheckKeys), serializeFunctions(aSerializeFunctions), bson(aBson), transferables(aTransferables)
   {
     if (transferables != NULL) { transferableContents.resize(transferables->size(), NULL); }
   }
@@ -249,7 +249,7 @@ public:
 private:
   int TransferableIndex(Local<ArrayBuffer> buffer);
 
-  Isolate* i;
+  Isolate* iso;
   bool		checkKeys;
   bool		serializeFunctions;
   BSON*		bson;
@@ -301,7 +301,7 @@ private:
   Handle<Value> DeserializeDocumentInternal(bool promoteLongs);
   Handle<Value> DeserializeArrayInternal(bool promoteLongs);
 
-  Isolate* i;
+  Isolate* iso;
   BSON*		bson;
   char* const pStart;
   char*		p;
@@ -315,7 +315,7 @@ template<typename T> void BSONSerializer<T>::SerializeDocument(const Handle<Valu
 {
   void* documentSize = this->BeginWriteSize();
 
-  Local<Object> object = bson->GetSerializeObject(i, value);
+  Local<Object> object = bson->GetSerializeObject(iso, value);
 
   // Get the object property names
   Local<Array> propertyNames = object->GetPropertyNames();
@@ -324,7 +324,7 @@ template<typename T> void BSONSerializer<T>::SerializeDocument(const Handle<Valu
   int propertyLength = propertyNames->Length();
   for(int i = 0;  i < propertyLength; ++i)
   {
-    const Local<String>& propertyName = propertyNames->Get(i)->ToString();
+    const Local<String>& propertyName = propertyNames->Get(i)->ToString(iso);
     if(checkKeys) this->CheckKey(propertyName);
 
     const Local<Value>& propertyValue = object->Get(propertyName);
@@ -345,7 +345,7 @@ template<typename T> void BSONSerializer<T>::SerializeArray(const Handle<Value>&
 {
   void* documentSize = this->BeginWriteSize();
 
-  Local<Array> array = Local<Array>::Cast(value->ToObject());
+  Local<Array> array = Local<Array>::Cast(value->ToObject(iso));
   uint32_t arrayLength = array->Length();
 
   for(uint32_t i = 0;  i < arrayLength; ++i)
@@ -433,7 +433,7 @@ template<typename T> void BSONSerializer<T>::SerializeValue(void* typeLocation, 
   else if(value->IsString())
   {
     this->CommitType(typeLocation, BSON_TYPE_STRING);
-    this->WriteLengthPrefixedString(value->ToString());
+    this->WriteLengthPrefixedString(value->ToString(iso));
   }
   else if(value->IsBoolean())
   {
@@ -466,61 +466,61 @@ template<typename T> void BSONSerializer<T>::SerializeValue(void* typeLocation, 
   else if(value->IsFunction())
   {
     this->CommitType(typeLocation, BSON_TYPE_CODE);
-    this->WriteLengthPrefixedString(value->ToString());
+    this->WriteLengthPrefixedString(value->ToString(iso));
   }
   else if(value->IsObject())
   {
-    const Local<Object>& object = value->ToObject();
-    if(object->Has(NewFromPersistent(i, bson->_bsontypeString)))
+    const Local<Object>& object = value->ToObject(iso);
+    if(object->Has(NewFromPersistent(iso, bson->_bsontypeString)))
     {
       const Local<String>& constructorString = object->GetConstructorName();
-      if(NewFromPersistent(i, bson->longString)->StrictEquals(constructorString))
+      if(NewFromPersistent(iso, bson->longString)->StrictEquals(constructorString))
       {
         this->CommitType(typeLocation, BSON_TYPE_LONG);
-        this->WriteInt32(object, NewFromPersistent(i, bson->_longLowString));
-        this->WriteInt32(object, NewFromPersistent(i, bson->_longHighString));
+        this->WriteInt32(object, NewFromPersistent(iso, bson->_longLowString));
+        this->WriteInt32(object, NewFromPersistent(iso, bson->_longHighString));
       }
-      else if(NewFromPersistent(i, bson->timestampString)->StrictEquals(constructorString))
+      else if(NewFromPersistent(iso, bson->timestampString)->StrictEquals(constructorString))
       {
         this->CommitType(typeLocation, BSON_TYPE_TIMESTAMP);
-        this->WriteInt32(object, NewFromPersistent(i, bson->_longLowString));
-        this->WriteInt32(object, NewFromPersistent(i, bson->_longHighString));
+        this->WriteInt32(object, NewFromPersistent(iso, bson->_longLowString));
+        this->WriteInt32(object, NewFromPersistent(iso, bson->_longHighString));
       }
-      else if(NewFromPersistent(i, bson->objectIDString)->StrictEquals(constructorString))
+      else if(NewFromPersistent(iso, bson->objectIDString)->StrictEquals(constructorString))
       {
         this->CommitType(typeLocation, BSON_TYPE_OID);
-        this->WriteObjectId(object, NewFromPersistent(i, bson->_objectIDidString));
+        this->WriteObjectId(iso, object, NewFromPersistent(iso, bson->_objectIDidString));
       }
-      else if(NewFromPersistent(i, bson->binaryString)->StrictEquals(constructorString))
+      else if(NewFromPersistent(iso, bson->binaryString)->StrictEquals(constructorString))
       {
         this->CommitType(typeLocation, BSON_TYPE_BINARY);
 
-        uint32_t length = object->Get(NewFromPersistent(i, bson->_binaryPositionString))->Uint32Value();
-        Local<Object> bufferObj = object->Get(NewFromPersistent(i, bson->_binaryBufferString))->ToObject();
+        uint32_t length = object->Get(NewFromPersistent(iso, bson->_binaryPositionString))->Uint32Value();
+        Local<Object> bufferObj = object->Get(NewFromPersistent(iso, bson->_binaryBufferString))->ToObject(iso);
 
         this->WriteInt32(length);
-        this->WriteByte(object, NewFromPersistent(i, bson->_binarySubTypeString));  // write subtype
+        this->WriteByte(object, NewFromPersistent(iso, bson->_binarySubTypeString));  // write subtype
         // If type 0x02 write the array length aswell
-        if(object->Get(NewFromPersistent(i, bson->_binarySubTypeString))->Int32Value() == 0x02) {
+        if(object->Get(NewFromPersistent(iso, bson->_binarySubTypeString))->Int32Value() == 0x02) {
           this->WriteInt32(length);
         }
         // Write the actual data
         this->WriteData(Buffer::Data(bufferObj), length);
       }
-      else if(NewFromPersistent(i, bson->doubleString)->StrictEquals(constructorString))
+      else if(NewFromPersistent(iso, bson->doubleString)->StrictEquals(constructorString))
       {
         this->CommitType(typeLocation, BSON_TYPE_NUMBER);
-        this->WriteDouble(object, NewFromPersistent(i, bson->_doubleValueString));
+        this->WriteDouble(object, NewFromPersistent(iso, bson->_doubleValueString));
       }
-      else if(NewFromPersistent(i, bson->symbolString)->StrictEquals(constructorString))
+      else if(NewFromPersistent(iso, bson->symbolString)->StrictEquals(constructorString))
       {
         this->CommitType(typeLocation, BSON_TYPE_SYMBOL);
-        this->WriteLengthPrefixedString(object->Get(NewFromPersistent(i, bson->_symbolValueString))->ToString());
+        this->WriteLengthPrefixedString(object->Get(NewFromPersistent(iso, bson->_symbolValueString))->ToString(iso));
       }
-      else if(NewFromPersistent(i, bson->codeString)->StrictEquals(constructorString))
+      else if(NewFromPersistent(iso, bson->codeString)->StrictEquals(constructorString))
       {
-        const Local<String>& function = object->Get(NewFromPersistent(i, bson->_codeCodeString))->ToString();
-        const Local<Object>& scope = object->Get(NewFromPersistent(i, bson->_codeScopeString))->ToObject();
+        const Local<String>& function = object->Get(NewFromPersistent(iso, bson->_codeCodeString))->ToString(iso);
+        const Local<Object>& scope = object->Get(NewFromPersistent(iso, bson->_codeScopeString))->ToObject(iso);
 
         // For Node < 0.6.X use the GetPropertyNames
         #if NODE_MAJOR_VERSION == 0 && NODE_MINOR_VERSION < 6
@@ -533,17 +533,17 @@ template<typename T> void BSONSerializer<T>::SerializeValue(void* typeLocation, 
         {
           this->CommitType(typeLocation, BSON_TYPE_CODE_W_SCOPE);
           void* codeWidthScopeSize = this->BeginWriteSize();
-          this->WriteLengthPrefixedString(function->ToString());
+          this->WriteLengthPrefixedString(function->ToString(iso));
           SerializeDocument(scope);
           this->CommitSize(codeWidthScopeSize);
         }
         else
         {
           this->CommitType(typeLocation, BSON_TYPE_CODE);
-          this->WriteLengthPrefixedString(function->ToString());
+          this->WriteLengthPrefixedString(function->ToString(iso));
         }
       }
-      else if(NewFromPersistent(i, bson->dbrefString)->StrictEquals(constructorString))
+      else if(NewFromPersistent(iso, bson->dbrefString)->StrictEquals(constructorString))
       {
         this->CommitType(typeLocation, BSON_TYPE_OBJECT);
 
@@ -551,13 +551,13 @@ template<typename T> void BSONSerializer<T>::SerializeValue(void* typeLocation, 
 
         void* refType = this->BeginWriteType();
         this->WriteData("$ref", 5);
-        SerializeValue(refType, object->Get(NewFromPersistent(i, bson->_dbRefNamespaceString)));
+        SerializeValue(refType, object->Get(NewFromPersistent(iso, bson->_dbRefNamespaceString)));
 
         void* idType = this->BeginWriteType();
         this->WriteData("$id", 4);
-        SerializeValue(idType, object->Get(NewFromPersistent(i, bson->_dbRefOidString)));
+        SerializeValue(idType, object->Get(NewFromPersistent(iso, bson->_dbRefOidString)));
 
-        const Local<Value>& refDbValue = object->Get(NewFromPersistent(i, bson->_dbRefDbString));
+        const Local<Value>& refDbValue = object->Get(NewFromPersistent(iso, bson->_dbRefDbString));
         if(!refDbValue->IsUndefined())
         {
           void* dbType = this->BeginWriteType();
@@ -568,11 +568,11 @@ template<typename T> void BSONSerializer<T>::SerializeValue(void* typeLocation, 
         this->WriteByte(0);
         this->CommitSize(dbRefSize);
       }
-      else if(NewFromPersistent(i, bson->minKeyString)->StrictEquals(constructorString))
+      else if(NewFromPersistent(iso, bson->minKeyString)->StrictEquals(constructorString))
       {
         this->CommitType(typeLocation, BSON_TYPE_MIN_KEY);
       }
-      else if(NewFromPersistent(i, bson->maxKeyString)->StrictEquals(constructorString))
+      else if(NewFromPersistent(iso, bson->maxKeyString)->StrictEquals(constructorString))
       {
         this->CommitType(typeLocation, BSON_TYPE_MAX_KEY);
       }
@@ -638,15 +638,15 @@ template<typename T> void BSONSerializer<T>::SerializeValue(void* typeLocation, 
       this->CommitType(typeLocation, BSON_TYPE_BINARY);
 
       #if NODE_MAJOR_VERSION == 0 && NODE_MINOR_VERSION < 3
-       Local<Object> buffer = ObjectWrap::Unwrap<Buffer>(value->ToObject());
+       Local<Object> buffer = ObjectWrap::Unwrap<Buffer>(value->ToObject(iso));
        uint32_t length = object->length();
       #else
-       uint32_t length = Buffer::Length(value->ToObject());
+       uint32_t length = Buffer::Length(value->ToObject(iso));
       #endif
 
       this->WriteInt32(length);
       this->WriteByte(0);
-      this->WriteData(Buffer::Data(value->ToObject()), length);
+      this->WriteData(Buffer::Data(value->ToObject(iso)), length);
     }
     else
     {
