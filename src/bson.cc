@@ -37,8 +37,12 @@
 using namespace v8;
 using namespace node;
 
-static Local<Int32> NewInt(Isolate* iso, int32_t d) { return Integer::New(iso, d)->ToInt32(iso); }
-static Local<Uint32> NewInt(Isolate* iso, uint32_t d) { return Integer::NewFromUnsigned(iso, d)->ToUint32(iso); }
+static Local<Int32> NewInt(Local<Context> context, Isolate* iso, int32_t d) {
+  return Integer::New(iso, d)->ToInt32(context).ToLocalChecked();
+}
+static Local<Uint32> NewInt(Local<Context> context, Isolate* iso, uint32_t d) {
+  return Integer::NewFromUnsigned(iso, d)->ToUint32(context).ToLocalChecked();
+}
 static Local<Number> NewNum(Isolate* iso, double d) { return Number::New(iso, d); }
 static Local<Number> NewNum(Isolate* iso, int64_t d) { return Number::New(iso, d); }
 static Local<String> NewString(Isolate* iso, const char* s) { return String::NewFromUtf8(iso, s); }
@@ -101,6 +105,7 @@ void DataStream::CheckKey(const Local<String>& keyName)
 // Data points to start of element list, length is length of entire document including '\0' but excluding initial size
 BSONDeserializer::BSONDeserializer(Isolate* i_, BSON* aBson, char* data, size_t length)
 : iso(i_),
+  context(i_->GetCurrentContext()),
   bson(aBson),
   pStart(data),
   p(data),
@@ -126,7 +131,7 @@ MaybeLocal<String> BSONDeserializer::ReadCString()
   char* start = p;
   while(*p++ && (p < pEnd)) { }
   if(p > pEnd) {
-    return Null(iso);
+    return MaybeLocal<String>();
   }
   return String::NewFromUtf8(iso, start, String::kNormalString, p - start - 1);
 }
@@ -209,7 +214,7 @@ Handle<Value> BSONDeserializer::DeserializeDocumentInternal(bool promoteLongs)
       returnObject->Get(NewFromPersistent(iso, bson->_dbRefIdRefString)),
       returnObject->Get(NewFromPersistent(iso, bson->_dbRefDbRefString))
     };
-    return NewFromPersistent(iso, bson->dbrefConstructor)->NewInstance(3, argv);
+    return NewFromPersistent(iso, bson->dbrefConstructor)->NewInstance(context, 3, argv).ToLocalChecked();
   }
   else
   {
@@ -273,7 +278,7 @@ Handle<Value> BSONDeserializer::DeserializeValue(BsonType type, bool promoteLong
     return ReadString();
 
   case BSON_TYPE_INT:
-    return NewInt(iso, ReadInt32());
+    return NewInt(context, iso, ReadInt32());
 
   case BSON_TYPE_NUMBER:
     return NewNum(iso, ReadDouble());
@@ -288,8 +293,8 @@ Handle<Value> BSONDeserializer::DeserializeValue(BsonType type, bool promoteLong
     {
       int32_t lowBits = ReadInt32();
       int32_t highBits = ReadInt32();
-      Local<Value> argv[] = { NewInt(iso, lowBits), NewInt(iso, highBits) };
-      return NewFromPersistent(iso, bson->timestampConstructor)->NewInstance(2, argv);
+      Local<Value> argv[] = { NewInt(context, iso, lowBits), NewInt(context, iso, highBits) };
+      return NewFromPersistent(iso, bson->timestampConstructor)->NewInstance(context, 2, argv).ToLocalChecked();
     }
 
   case BSON_TYPE_BOOLEAN:
@@ -300,7 +305,7 @@ Handle<Value> BSONDeserializer::DeserializeValue(BsonType type, bool promoteLong
       auto regex = ReadCString();
       if(regex.IsEmpty()) ThrowAllocatedStringException(64, "Bad BSON Document: illegal CString");
       int32_t options = ReadRegexOptions();
-      return RegExp::New(regex->ToString(iso), (RegExp::Flags) options);
+      return RegExp::New(regex.ToLocalChecked()->ToString(iso), (RegExp::Flags) options);
     }
 
   case BSON_TYPE_CODE:
@@ -308,7 +313,7 @@ Handle<Value> BSONDeserializer::DeserializeValue(BsonType type, bool promoteLong
       const Local<Value>& code = ReadString();
       const Local<Value>& scope = Object::New(iso);
       Local<Value> argv[] = { code, scope };
-      return NewFromPersistent(iso, bson->codeConstructor)->NewInstance(2, argv);
+      return NewFromPersistent(iso, bson->codeConstructor)->NewInstance(context, 2, argv).ToLocalChecked();
     }
 
   case BSON_TYPE_CODE_W_SCOPE:
@@ -317,13 +322,13 @@ Handle<Value> BSONDeserializer::DeserializeValue(BsonType type, bool promoteLong
       const Local<Value>& code = ReadString();
       const Handle<Value>& scope = DeserializeDocument(promoteLongs);
       Local<Value> argv[] = { code, scope->ToObject(iso) };
-      return NewFromPersistent(iso, bson->codeConstructor)->NewInstance(2, argv);
+      return NewFromPersistent(iso, bson->codeConstructor)->NewInstance(context, 2, argv).ToLocalChecked();
     }
 
   case BSON_TYPE_OID:
     {
       Local<Value> argv[] = { ReadObjectId() };
-      return NewFromPersistent(iso, bson->objectIDConstructor)->NewInstance(1, argv);
+      return NewFromPersistent(iso, bson->objectIDConstructor)->NewInstance(context, 1, argv).ToLocalChecked();
     }
 
   case BSON_TYPE_BINARY:
@@ -334,11 +339,11 @@ Handle<Value> BSONDeserializer::DeserializeValue(BsonType type, bool promoteLong
         length = ReadInt32();
       }
 
-      Local<Object> buffer = Buffer::New(iso, p, length);
+      Local<Object> buffer = Buffer::New(iso, p, length).ToLocalChecked();
       p += length;
 
-      Handle<Value> argv[] = { buffer, NewInt(iso, subType) };
-      return NewFromPersistent(iso, bson->binaryConstructor)->NewInstance(2, argv);
+      Handle<Value> argv[] = { buffer, NewInt(context, iso, subType) };
+      return NewFromPersistent(iso, bson->binaryConstructor)->NewInstance(context, 2, argv).ToLocalChecked();
     }
 
   case BSON_TYPE_LONG:
@@ -360,8 +365,8 @@ Handle<Value> BSONDeserializer::DeserializeValue(BsonType type, bool promoteLong
       }
 
       // Decode the Long value
-      Local<Value> argv[] = { NewInt(iso, lowBits), NewInt(iso, highBits) };
-      return NewFromPersistent(iso, bson->longConstructor)->NewInstance(2, argv);
+      Local<Value> argv[] = { NewInt(context, iso, lowBits), NewInt(context, iso, highBits) };
+      return NewFromPersistent(iso, bson->longConstructor)->NewInstance(context, 2, argv).ToLocalChecked();
     }
 
   case BSON_TYPE_DATE:
@@ -377,14 +382,14 @@ Handle<Value> BSONDeserializer::DeserializeValue(BsonType type, bool promoteLong
     {
       const Local<String>& string = ReadString();
       Local<Value> argv[] = { string };
-      return NewFromPersistent(iso, bson->symbolConstructor)->NewInstance(1, argv);
+      return NewFromPersistent(iso, bson->symbolConstructor)->NewInstance(context, 1, argv).ToLocalChecked();
     }
 
   case BSON_TYPE_MIN_KEY:
-    return NewFromPersistent(iso, bson->minKeyConstructor)->NewInstance();
+    return NewFromPersistent(iso, bson->minKeyConstructor)->NewInstance(context).ToLocalChecked();
 
   case BSON_TYPE_MAX_KEY:
-    return NewFromPersistent(iso, bson->maxKeyConstructor)->NewInstance();
+    return NewFromPersistent(iso, bson->maxKeyConstructor)->NewInstance(context).ToLocalChecked();
 
   case BSON_TYPE_TYPED_ARRAY:
     {

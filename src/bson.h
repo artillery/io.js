@@ -302,6 +302,7 @@ private:
   Handle<Value> DeserializeArrayInternal(bool promoteLongs);
 
   Isolate* iso;
+  Local<Context> context;
   BSON*		bson;
   char* const pStart;
   char*		p;
