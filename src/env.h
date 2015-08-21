@@ -270,8 +270,8 @@ namespace node {
 // The cleanup for resources that are backing strong persistent handles is
 // ensured in some other way, e.g. RegisterHandleCleanup.
 enum ClassId : uint16_t {
-  SMALLOC = 0xA10C,
-  CONTEXTIFY_SCRIPT = SMALLOC + 1,
+  NODE_BUFFER = 0xA10C,
+  CONTEXTIFY_SCRIPT = NODE_BUFFER + 1,
 #define V(PROVIDER)                                                           \
   PROVIDER_CLASS_ID_ ## PROVIDER =                                            \
       AsyncWrap::PROVIDER_ ## PROVIDER + NODE_ASYNC_ID_OFFSET,

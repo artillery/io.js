@@ -4,7 +4,7 @@
 
 #include "env.h"
 #include "env-inl.h"
-#include "smalloc.h"
+#include "node_buffer.h"
 #include "node-contextify.h"
 #include "async-wrap.h"
 
@@ -13,7 +13,7 @@ namespace node {
 using v8::Persistent;
 using v8::Value;
 using v8::Isolate;
-using smalloc::CallbackInfo;
+using Buffer::CallbackInfo;
 
 void PersistentHandleCleanup::VisitPersistentHandle(
     Persistent<Value>* value, uint16_t class_id) {
@@ -22,7 +22,7 @@ void PersistentHandleCleanup::VisitPersistentHandle(
 
   if (value->IsWeak()) {
     switch (static_cast<ClassId>(class_id)) {
-      case SMALLOC:
+      case NODE_BUFFER:
         value->ClearWeak<CallbackInfo>()->DisposeNoAllocation(env()->isolate());
         break;
       case CONTEXTIFY_SCRIPT:

@@ -13,8 +13,6 @@
 #include <string.h>
 #include <limits.h>
 
-#define BUFFER_ID 0xB0E4
-
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 
 #define CHECK_NOT_OOB(r)                                                    \
@@ -75,30 +73,6 @@ using v8::Value;
 using v8::WeakCallbackData;
 
 
-class CallbackInfo {
- public:
-  static inline void Free(char* data, void* hint);
-  static inline CallbackInfo* New(Isolate* isolate,
-                                  Local<Object> object,
-                                  FreeCallback callback,
-                                  void* hint = 0);
-  inline void Dispose(Isolate* isolate);
-  inline Persistent<Object>* persistent();
- private:
-  static void WeakCallback(const WeakCallbackData<Object, CallbackInfo>&);
-  inline void WeakCallback(Isolate* isolate, Local<Object> object);
-  inline CallbackInfo(Isolate* isolate,
-                      Local<Object> object,
-                      FreeCallback callback,
-                      void* hint);
-  ~CallbackInfo();
-  Persistent<Object> persistent_;
-  FreeCallback const callback_;
-  void* const hint_;
-  DISALLOW_COPY_AND_ASSIGN(CallbackInfo);
-};
-
-
 void CallbackInfo::Free(char* data, void*) {
   ::free(data);
 }
@@ -116,6 +90,18 @@ void CallbackInfo::Dispose(Isolate* isolate) {
   WeakCallback(isolate, PersistentToLocal(isolate, persistent_));
 }
 
+void CallbackInfo::DisposeNoAllocation(Isolate* isolate) {
+  HandleScope scope(isolate);
+
+  Local<Object> object = PersistentToLocal(isolate, persistent_);
+  Local<Uint8Array> ui = object.As<Uint8Array>();
+  Local<ArrayBuffer> arrayBuffer = ui->Buffer();
+  ArrayBuffer::Contents contents = arrayBuffer->GetContents();
+  arrayBuffer->Neuter();
+  free(contents.Data());
+
+  delete this;
+}
 
 Persistent<Object>* CallbackInfo::persistent() {
   return &persistent_;
@@ -130,7 +116,7 @@ CallbackInfo::CallbackInfo(Isolate* isolate,
       callback_(callback),
       hint_(hint) {
   persistent_.SetWeak(this, WeakCallback);
-  persistent_.SetWrapperClassId(BUFFER_ID);
+  persistent_.SetWrapperClassId(ClassId::NODE_BUFFER);
   persistent_.MarkIndependent();
   isolate->AdjustAmountOfExternalAllocatedMemory(sizeof(*this));
 }

@@ -334,7 +334,7 @@ Handle<Value> BSONDeserializer::DeserializeValue(BsonType type, bool promoteLong
         length = ReadInt32();
       }
 
-      Local<Object> buffer = Buffer::New(iso, p, length);
+      Local<Object> buffer = Buffer::New(iso, p, length).ToLocalChecked();
       p += length;
 
       Handle<Value> argv[] = { buffer, NewInt(iso, subType) };
