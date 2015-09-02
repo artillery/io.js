@@ -409,7 +409,8 @@ Handle<Value> BSONDeserializer::DeserializeValue(BsonType type, bool promoteLong
       {
         // Create buffer from existing memory. The array buffer has been externalized and neutered
         // when the array was transferred here.
-        buffer = ArrayBuffer::NewNonExternal(iso, pointer, bufferLength);
+        buffer = ArrayBuffer::New(iso, pointer, bufferLength,
+                                  v8::ArrayBufferCreationMode::kInternalized);
       }
 
       switch (arrayType) {

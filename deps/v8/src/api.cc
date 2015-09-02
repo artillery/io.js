@@ -6262,6 +6262,18 @@ v8::ArrayBuffer::Contents v8::ArrayBuffer::Externalize() {
   self->set_is_external(true);
   isolate->heap()->UnregisterArrayBuffer(isolate->heap()->InNewSpace(*self),
                                          self->backing_store());
+  auto byte_length = static_cast<size_t>(self->byte_length()->Number());
+  /*
+   * Added by artillery - adjust memory downward to prevent v8 from needless triggering
+   * mark-and-sweep cycles.
+   * See: https://code.google.com/p/v8/issues/detail?id=4409
+   * Remove this patch when
+   * https://chromium.googlesource.com/v8/v8.git/+/15a0ace533f5810bf87382decbbaf4799f6cac8e
+   * lands in io.js. Test with the repro I made, as it isn't clear to me from reading the
+   * above patch why it fixes this issue.
+   */
+  reinterpret_cast<v8::Isolate*>(isolate)->AdjustAmountOfExternalAllocatedMemory(
+      -static_cast<int64_t>(byte_length));
 
   return GetContents();
 }
@@ -6321,18 +6333,6 @@ Local<ArrayBuffer> v8::ArrayBuffer::New(Isolate* isolate, void* data,
                                data, byte_length);
   return Utils::ToLocal(obj);
 }
-
-Local<ArrayBuffer> v8::ArrayBuffer::NewNonExternal(Isolate* isolate, void* data,
-                                                   size_t byte_length) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  LOG_API(i_isolate, "v8::ArrayBuffer::NewNonExternal(void*, size_t)");
-  ENTER_V8(i_isolate);
-  i::Handle<i::JSArrayBuffer> obj =
-      i_isolate->factory()->NewJSArrayBuffer();
-  i::Runtime::SetupArrayBuffer(i_isolate, obj, false, data, byte_length);
-  return Utils::ToLocal(obj);
-}
-
 
 
 Local<ArrayBuffer> v8::ArrayBufferView::Buffer() {
