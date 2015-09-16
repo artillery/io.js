@@ -22,6 +22,7 @@
 #include <assert.h>
 #include <limits.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 #include "uv.h"
 #include "internal.h"
@@ -484,6 +485,7 @@ static void uv__rwlock_fallback_wrunlock(uv_rwlock_t* rwlock) {
  */
 
 static int uv_cond_fallback_init(uv_cond_t* cond) {
+printf("SIGNAL uv_cond_fallback_init %d\n", cond); fflush(stdout); //XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   int err;
 
   /* Initialize the count to 0. */
@@ -538,6 +540,7 @@ int uv_cond_init(uv_cond_t* cond) {
 
 
 static void uv_cond_fallback_destroy(uv_cond_t* cond) {
+printf("SIGNAL uv_cond_fallback_destroy %d\n", cond); fflush(stdout); //XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   if (!CloseHandle(cond->fallback.broadcast_event))
     abort();
   if (!CloseHandle(cond->fallback.signal_event))
@@ -560,6 +563,7 @@ void uv_cond_destroy(uv_cond_t* cond) {
 
 
 static void uv_cond_fallback_signal(uv_cond_t* cond) {
+printf("SIGNAL uv_cond_fallback_signal %d\n", cond); fflush(stdout); //XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   int have_waiters;
 
   /* Avoid race conditions. */
@@ -578,6 +582,7 @@ static void uv_cond_condvar_signal(uv_cond_t* cond) {
 
 
 void uv_cond_signal(uv_cond_t* cond) {
+printf("SIGNAL uv_cond_signal %d\n", cond); fflush(stdout); //XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   if (HAVE_CONDVAR_API())
     uv_cond_condvar_signal(cond);
   else
@@ -613,6 +618,7 @@ void uv_cond_broadcast(uv_cond_t* cond) {
 
 static int uv_cond_wait_helper(uv_cond_t* cond, uv_mutex_t* mutex,
     DWORD dwMilliseconds) {
+printf("SIGNAL uv_cond_wait_helper %d\n", cond); fflush(stdout); //XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   DWORD result;
   int last_waiter;
   HANDLE handles[2] = {

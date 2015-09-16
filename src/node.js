@@ -766,6 +766,7 @@
   startup.processKillAndExit = function() {
 
     process.exit = function(code) {
+      console.log("EXITING", code);
       if (code || code === 0)
         process.exitCode = code;
 
@@ -777,6 +778,7 @@
     };
 
     process.kill = function(pid, sig) {
+      console.log("KILLING", pid, sig);
       var err;
 
       if (pid != (pid | 0)) {
@@ -821,6 +823,7 @@
           !signalWraps.hasOwnProperty(type)) {
         var Signal = process.binding('signal_wrap').Signal;
         var wrap = new Signal();
+        console.log("WRAPPING SIGNAL!", type, listener, Signal, wrap);
 
         wrap.unref();
 

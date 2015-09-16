@@ -76,6 +76,7 @@ class SignalWrap : public HandleWrap {
   }
 
   static void OnSignal(uv_signal_t* handle, int signum) {
+printf("SIGNAL WRAP %d\n", signum); fflush(stdout); //XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
     SignalWrap* wrap = ContainerOf(&SignalWrap::handle_, handle);
     Environment* env = wrap->env();
     HandleScope handle_scope(env->isolate());

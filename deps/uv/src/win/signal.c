@@ -25,6 +25,7 @@
 #include "internal.h"
 #include "handle-inl.h"
 #include "req-inl.h"
+#include <stdio.h>
 
 
 RB_HEAD(uv_signal_tree_s, uv_signal_s);
@@ -35,7 +36,9 @@ static CRITICAL_SECTION uv__signal_lock;
 
 
 void uv_signals_init() {
+printf("SIGNAL init begin\n"); fflush(stdout); //XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   InitializeCriticalSection(&uv__signal_lock);
+printf("SIGNAL init end\n"); fflush(stdout); //XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 }
 
 
@@ -66,6 +69,7 @@ RB_GENERATE_STATIC(uv_signal_tree_s, uv_signal_s, tree_entry, uv__signal_compare
  * no active signal watchers observing this signal.
  */
 int uv__signal_dispatch(int signum) {
+printf("SIGNAL dispatch %d\n", signum); fflush(stdout); //XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   uv_signal_t lookup;
   uv_signal_t* handle;
   int dispatched = 0;
@@ -126,6 +130,7 @@ static BOOL WINAPI uv__signal_control_handler(DWORD type) {
 
 
 static int uv__signal_register_control_handler() {
+printf("SIGNAL register control handler\n"); fflush(stdout); //XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   /* When this function is called, the uv__signal_lock must be held. */
 
   /* If the console control handler has already been hooked, just add a */
@@ -145,6 +150,7 @@ static int uv__signal_register_control_handler() {
 
 
 static void uv__signal_unregister_control_handler() {
+printf("SIGNAL unregister control handler\n"); fflush(stdout); //XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   /* When this function is called, the uv__signal_lock must be held. */
   BOOL r;
 
@@ -166,6 +172,7 @@ static void uv__signal_unregister_control_handler() {
 
 
 static int uv__signal_register(int signum) {
+printf("REGISTERED SIGNAL %d\n", signum); fflush(stdout); //XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   switch (signum) {
     case SIGINT:
     case SIGBREAK:
@@ -193,6 +200,7 @@ static int uv__signal_register(int signum) {
 
 
 static void uv__signal_unregister(int signum) {
+printf("UNREGISTERED SIGNAL %d\n", signum); fflush(stdout); //XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   switch (signum) {
     case SIGINT:
     case SIGBREAK:
@@ -222,6 +230,7 @@ static void uv__signal_unregister(int signum) {
 
 
 int uv_signal_init(uv_loop_t* loop, uv_signal_t* handle) {
+printf("SIGNAL init\n"); fflush(stdout); //XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   uv_req_t* req;
 
   uv__handle_init(loop, (uv_handle_t*) handle, UV_SIGNAL);
@@ -239,6 +248,7 @@ int uv_signal_init(uv_loop_t* loop, uv_signal_t* handle) {
 
 
 int uv_signal_stop(uv_signal_t* handle) {
+printf("SIGNAL stop\n"); fflush(stdout); //XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   uv_signal_t* removed_handle;
 
   /* If the watcher wasn't started, this is a no-op. */
@@ -262,6 +272,7 @@ int uv_signal_stop(uv_signal_t* handle) {
 
 
 int uv_signal_start(uv_signal_t* handle, uv_signal_cb signal_cb, int signum) {
+printf("SIGNAL start %d\n", signum); fflush(stdout); //XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   int err;
 
   /* If the user supplies signum == 0, then return an error already. If the */
@@ -310,6 +321,7 @@ int uv_signal_start(uv_signal_t* handle, uv_signal_cb signal_cb, int signum) {
 
 void uv_process_signal_req(uv_loop_t* loop, uv_signal_t* handle,
     uv_req_t* req) {
+printf("SIGNAL req\n"); fflush(stdout); //XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   long dispatched_signum;
 
   assert(handle->type == UV_SIGNAL);
@@ -334,6 +346,7 @@ void uv_process_signal_req(uv_loop_t* loop, uv_signal_t* handle,
 
 
 void uv_signal_close(uv_loop_t* loop, uv_signal_t* handle) {
+printf("SIGNAL close\n"); fflush(stdout); //XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   uv_signal_stop(handle);
   uv__handle_closing(handle);
 
@@ -344,6 +357,7 @@ void uv_signal_close(uv_loop_t* loop, uv_signal_t* handle) {
 
 
 void uv_signal_endgame(uv_loop_t* loop, uv_signal_t* handle) {
+printf("SIGNAL endgame"); fflush(stdout); //XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   assert(handle->flags & UV__HANDLE_CLOSING);
   assert(!(handle->flags & UV_HANDLE_CLOSED));
 

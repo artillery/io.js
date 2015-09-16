@@ -20,6 +20,7 @@
  */
 
 #include "uv-common.h"
+#include <stdio.h>
 
 #if !defined(_WIN32)
 # include "unix/internal.h"
@@ -74,8 +75,10 @@ static void worker(void* arg) {
 
     q = QUEUE_HEAD(&wq);
 
-    if (q == &exit_message)
+    if (q == &exit_message) {
+printf("WORKER queue end or something?\n"); fflush(stdout); //XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
       uv_cond_signal(&cond);
+    }
     else {
       QUEUE_REMOVE(q);
       QUEUE_INIT(q);  /* Signal uv_cancel() that the work req is
