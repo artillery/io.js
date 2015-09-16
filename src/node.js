@@ -7,9 +7,11 @@
 'use strict';
 
 (function(process) {
+  process.EXPLODE();
   this.global = this;
 
   function startup() {
+
     var EventEmitter = NativeModule.require('events').EventEmitter;
 
     process.__proto__ = Object.create(EventEmitter.prototype, {

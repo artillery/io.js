@@ -3062,6 +3062,13 @@ static void RawDebug(const FunctionCallbackInfo<Value>& args) {
   fflush(stderr);
 }
 
+static void EXPLODE(const FunctionCallbackInfo<Value>& args) { // XXXXXXXXX
+  printf("ABOUT TO EXPLODE\n");
+  fflush(stdout);
+  *(int *)0 = 0; // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  printf("FINISHED EXPLODING\n");
+  fflush(stdout);
+}
 
 void LoadEnvironment(Environment* env,
                      void(*loadExtensions)(v8::Isolate*, v8::Local<v8::Object> global)) {
@@ -3123,13 +3130,17 @@ void LoadEnvironment(Environment* env,
   try_catch.SetVerbose(true);
 
   env->SetMethod(env->process_object(), "_rawDebug", RawDebug);
+  env->SetMethod(env->process_object(), "EXPLODE", EXPLODE);
 
   if (loadExtensions != nullptr) {
     loadExtensions(env->isolate(), global);
   }
 
   Local<Value> arg = env->process_object();
+  printf("XXXXXXX BEFORE f->CALL\n"); fflush(stdout);
   f->Call(global, 1, &arg);
+  printf("XXXXXXX AFTER f->CALL\n"); fflush(stdout);
+  *(int *)0 = 0; // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 }
 
 static void PrintHelp();
@@ -3704,7 +3715,7 @@ void Init(int* argc,
           const char** argv,
           int* exec_argc,
           const char*** exec_argv) {
-  atexit(AtExit);
+  //atexit(AtExit);
   // Initialize prog_start_time to get relative uptime.
   prog_start_time = static_cast<double>(uv_now(uv_default_loop()));
 
