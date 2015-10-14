@@ -35,6 +35,17 @@
     'mksnapshot_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)mksnapshot<(EXECUTABLE_SUFFIX)',
   },
   'includes': ['../../build/toolchain.gypi', '../../build/features.gypi'],
+  'conditions': [
+    ['OS=="win"', {
+      'variables': {
+        'gyp_generators': '<!(echo $GYP_GENERATORS)',
+      },
+      'msvs_disabled_warnings': [4351, 4355, 4800],
+      'cflags': [
+        '/Zc:sizedDealloc-'
+      ]
+    }],
+  ],
   'targets': [
     {
       'target_name': 'v8',
@@ -1335,6 +1346,9 @@
           # limit. This breaks it into multiple pieces to avoid the limit.
           # See http://crbug.com/485155.
           'msvs_shard': 4,
+          'cflags': [
+            '/Zc:sizedDealloc-'
+          ]
         }],
         ['component=="shared_library"', {
           'defines': [
