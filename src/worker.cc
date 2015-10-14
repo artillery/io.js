@@ -64,6 +64,8 @@ WorkerContext::WorkerContext(Environment* owner_env,
       worker_notifications_(worker_event_loop(),
                             WorkerNotificationCallback,
                             this),
+      worker_bson_(nullptr),
+      owner_bson_(nullptr),
       argc_(argc),
       argv_(argv),
       exec_argc_(exec_argc),
@@ -80,6 +82,9 @@ WorkerContext::WorkerContext(Environment* owner_env,
   CHECK_EQ(uv_mutex_init(initialization_mutex()), 0);
   CHECK_EQ(uv_mutex_init(to_owner_messages_mutex()), 0);
   CHECK_EQ(uv_mutex_init(to_worker_messages_mutex()), 0);
+
+  HandleScope scope(owner_env->isolate());
+  owner_bson_ = new BSON(owner_env->isolate());
 }
 
 void WorkerContext::New(const FunctionCallbackInfo<Value>& args) {
@@ -171,11 +176,10 @@ static std::vector<Local<ArrayBuffer>> populateTransferables(Local<Value> transf
   return ret;
 }
 
-WorkerMessage* WorkerContext::SerializePostMessage(Isolate* i, const FunctionCallbackInfo<Value>& args) {
+WorkerMessage* WorkerContext::SerializePostMessage(BSON* bson, Isolate* i, const FunctionCallbackInfo<Value>& args) {
   CHECK(args[1]->IsArray());
   CHECK(args[2]->IsInt32());
 
-  BSON bson(i);
   std::vector<Local<ArrayBuffer>> transferables = populateTransferables(args[1]);
 
   size_t object_size = 0;
@@ -183,13 +187,13 @@ WorkerMessage* WorkerContext::SerializePostMessage(Isolate* i, const FunctionCal
 
   object->Set(0, args[0]);
 
-  BSONSerializer<CountStream> counter(i, &bson, false, false, &transferables);
+  BSONSerializer<CountStream> counter(i, bson, false, false, &transferables);
   counter.SerializeDocument(object);
   object_size = counter.GetSerializeSize();
 
   char* buffer = static_cast<char*>(malloc(object_size));
 
-  BSONSerializer<DataStream> data(i, &bson, false, false, buffer, &transferables);
+  BSONSerializer<DataStream> data(i, bson, false, false, buffer, &transferables);
   data.SerializeDocument(object);
 
   WorkerMessageType message_type =
@@ -213,7 +217,8 @@ void WorkerContext::PostMessageToOwner(
     return;
   }
 
-  context->PostMessageToOwner(context->SerializePostMessage(context->worker_isolate(), args));
+  HandleScope scope(context->worker_isolate());
+  context->PostMessageToOwner(context->SerializePostMessage(context->worker_bson_, context->worker_isolate(), args));
 }
 
 void WorkerContext::PostMessageToWorker(WorkerMessage* message) {
@@ -238,7 +243,8 @@ void WorkerContext::PostMessageToWorker(
     return;
   CHECK_CALLED_FROM_OWNER(context);
 
-  context->PostMessageToWorker(context->SerializePostMessage(context->owner_env()->isolate(), args));
+  HandleScope scope(context->owner_env()->isolate());
+  context->PostMessageToWorker(context->SerializePostMessage(context->owner_bson_, context->owner_env()->isolate(), args));
 }
 
 void WorkerContext::WrapperNew(const FunctionCallbackInfo<Value>& args) {
@@ -417,9 +423,8 @@ void WorkerContext::Terminate(bool should_emit_exit_event) {
   }
 }
 
-static Local<Value> DeserializeMessage(Isolate* isolate, WorkerMessage* message) {
-  BSON bson(isolate);
-  BSONDeserializer deserializer(isolate, &bson, message->payload(), message->size());
+static Local<Value> DeserializeMessage(BSON* bson, Isolate* isolate, WorkerMessage* message) {
+  BSONDeserializer deserializer(isolate, bson, message->payload(), message->size());
   Local<Value> val = deserializer.DeserializeDocument(true);
   CHECK(val->IsObject());
   Local<Object> object = val->ToObject();
@@ -429,7 +434,7 @@ static Local<Value> DeserializeMessage(Isolate* isolate, WorkerMessage* message)
 bool WorkerContext::ProcessMessageToWorker(Isolate* isolate,
                                            WorkerMessage* message) {
   Local<Value> argv[] = {
-    DeserializeMessage(isolate, message),
+    DeserializeMessage(worker_bson_, isolate, message),
     Integer::New(isolate, message->type())
   };
   delete message;
@@ -476,7 +481,7 @@ void WorkerContext::ProcessMessagesToWorker() {
 bool WorkerContext::ProcessMessageToOwner(Isolate* isolate,
                                           WorkerMessage* message) {
   Local<Value> argv[] = {
-    DeserializeMessage(isolate, message),
+    DeserializeMessage(owner_bson_, isolate, message),
     Integer::New(isolate, message->type())
   };
   delete message;
@@ -533,6 +538,9 @@ void WorkerContext::Dispose() {
   uv_mutex_destroy(to_owner_messages_mutex());
   uv_mutex_destroy(to_worker_messages_mutex());
 
+  if (owner_bson_ != nullptr) { delete owner_bson_; }
+  owner_bson_ = nullptr;
+
   delete[] argv_;
   delete[] exec_argv_;
 
@@ -571,6 +579,8 @@ void WorkerContext::DisposeWorker(TerminationKind termination_kind) {
     worker_env()->Dispose();
     worker_env_ = nullptr;
   }
+  if (worker_bson_ != nullptr) { delete worker_bson_; }
+  worker_bson_ = nullptr;
   pending_owner_cleanup_ = true;
   owner_notifications()->Notify();
 }
@@ -680,6 +690,8 @@ void WorkerContext::Run() {
                                         eval_string,
                                         v8::ReadOnly);
       }
+
+      worker_bson_ = new BSON(worker_isolate());
 
       Local<Function> entry =
           env->process_object()->Get(

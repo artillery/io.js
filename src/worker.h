@@ -9,6 +9,8 @@
 #include "uv.h"
 #include "v8.h"
 
+#include <memory>
+
 #ifndef NODE_OS_MACOSX
   #define CHECK_CALLED_FROM_OWNER(worker_context)                              \
     do {                                                                       \
@@ -31,6 +33,8 @@
   V(USER)                                                                     \
   V(INTERNAL)                                                                 \
   V(EXCEPTION)                                                                \
+
+class BSON;
 
 namespace node {
 class Environment;
@@ -139,7 +143,7 @@ class WorkerContext {
     void LoopEnded();
     bool LoopWouldEnd();
     WorkerMessage* SerializePostMessage(
-        v8::Isolate* i, const v8::FunctionCallbackInfo<v8::Value>& args);
+        BSON* bson, v8::Isolate* i, const v8::FunctionCallbackInfo<v8::Value>& args);
     void ProcessMessagesToOwner();
     bool ProcessMessageToOwner(v8::Isolate* isolate, WorkerMessage* message);
     void ProcessMessagesToWorker();
@@ -273,6 +277,10 @@ class WorkerContext {
     uv_mutex_t to_worker_messages_mutex_;
     NotificationChannel owner_notifications_;
     NotificationChannel worker_notifications_;
+
+    BSON* worker_bson_;
+    BSON* owner_bson_;
+
     bool is_initialized_ = false;
     bool pending_owner_cleanup_ = false;
     bool should_emit_exit_event_ = true;
