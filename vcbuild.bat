@@ -204,14 +204,14 @@ if "%target%" == "Clean" goto exit
 @rem Skip signing if the `nosign` option was specified.
 if defined nosign goto licensertf
 
-signtool sign /a /d "Node.js" /du "https://nodejs.org" /t http://timestamp.globalsign.com/scripts/timestamp.dll Release\node.exe
+signtool sign /a /d "io.js" /du "https://nodejs.org" /t http://timestamp.globalsign.com/scripts/timestamp.dll Release\iojs.exe
 if errorlevel 1 echo Failed to sign exe&goto exit
 
 :licensertf
 @rem Skip license.rtf generation if not requested.
 if not defined licensertf goto msi
 
-%config%\node tools\license2rtf.js < LICENSE > %config%\license.rtf
+%config%\iojs tools\license2rtf.js < LICENSE > %config%\license.rtf
 if errorlevel 1 echo Failed to generate license.rtf&goto exit
 
 :msi
@@ -219,12 +219,12 @@ if errorlevel 1 echo Failed to generate license.rtf&goto exit
 if not defined msi goto run
 
 :msibuild
-echo Building node-v%FULLVERSION%-%target_arch%.msi
+echo Building iojs-v%FULLVERSION%-%target_arch%.msi
 msbuild "%~dp0tools\msvs\msi\nodemsi.sln" /m /t:Clean,Build /p:PlatformToolset=%PLATFORM_TOOLSET% /p:GypMsvsVersion=%GYP_MSVS_VERSION% /p:Configuration=%config% /p:Platform=%target_arch% /p:NodeVersion=%NODE_VERSION% /p:FullVersion=%FULLVERSION% /p:DistTypeDir=%DISTTYPEDIR% %noetw_msi_arg% %noperfctr_msi_arg% /clp:NoSummary;NoItemAndPropertyList;Verbosity=minimal /nologo
 if errorlevel 1 goto exit
 
 if defined nosign goto upload
-signtool sign /a /d "Node.js" /du "https://nodejs.org" /t http://timestamp.globalsign.com/scripts/timestamp.dll node-v%FULLVERSION%-%target_arch%.msi
+signtool sign /a /d "io.js" /du "https://nodejs.org" /t http://timestamp.globalsign.com/scripts/timestamp.dll node-v%FULLVERSION%-%target_arch%.msi
 if errorlevel 1 echo Failed to sign msi&goto exit
 
 :upload
@@ -235,12 +235,13 @@ if not defined SSHCONFIG (
   echo SSHCONFIG is not set for upload
   exit /b 1
 )
-if not defined STAGINGSERVER set STAGINGSERVER=node-www
-ssh -F %SSHCONFIG% %STAGINGSERVER% "mkdir -p nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%"
-scp -F %SSHCONFIG% Release\node.exe %STAGINGSERVER%:nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node.exe
-scp -F %SSHCONFIG% Release\node.lib %STAGINGSERVER%:nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node.lib
-scp -F %SSHCONFIG% node-v%FULLVERSION%-%target_arch%.msi %STAGINGSERVER%:nodejs/%DISTTYPEDIR%/v%FULLVERSION%/
-ssh -F %SSHCONFIG% %STAGINGSERVER% "touch nodejs/%DISTTYPEDIR%/v%FULLVERSION%/node-v%FULLVERSION%-%target_arch%.msi.done nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%.done && chmod -R ug=rw-x+X,o=r+X nodejs/%DISTTYPEDIR%/v%FULLVERSION%/node-v%FULLVERSION%-%target_arch%.msi* nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%*"
+if not defined STAGINGSERVER set STAGINGSERVER=iojs-www
+ssh -F %SSHCONFIG% %STAGINGSERVER% "mkdir -p staging/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%"
+scp -F %SSHCONFIG% Release\iojs.exe %STAGINGSERVER%:staging/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/iojs.exe
+scp -F %SSHCONFIG% Release\iojs.lib %STAGINGSERVER%:staging/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/iojs.lib
+scp -F %SSHCONFIG% iojs-v%FULLVERSION%-%target_arch%.msi %STAGINGSERVER%:staging/%DISTTYPEDIR%/v%FULLVERSION%/
+ssh -F %SSHCONFIG% %STAGINGSERVER% "touch staging/%DISTTYPEDIR%/v%FULLVERSION%/iojs-v%FULLVERSION%-%target_arch%.msi.done staging/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%.done"
+ssh -F %SSHCONFIG% %STAGINGSERVER% "touch staging/%DISTTYPEDIR%/v%FULLVERSION%/iojs-v%FULLVERSION%-%target_arch%.msi.done staging/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%.done && chmod -R ug=rw-x+X,o=r+X iojs/%DISTTYPEDIR%/v%FULLVERSION%/iojs-v%FULLVERSION%-%target_arch%.msi* iojs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%*"
 
 :run
 @rem Run tests if requested.
@@ -248,7 +249,7 @@ ssh -F %SSHCONFIG% %STAGINGSERVER% "touch nodejs/%DISTTYPEDIR%/v%FULLVERSION%/no
 :build-node-weak
 @rem Build node-weak if required
 if "%buildnodeweak%"=="" goto build-addons
-"%config%\node" deps\npm\node_modules\node-gyp\bin\node-gyp rebuild --directory="%~dp0test\gc\node_modules\weak" --nodedir="%~dp0."
+"%config%\iojs" deps\npm\node_modules\node-gyp\bin\node-gyp rebuild --directory="%~dp0test\gc\node_modules\weak" --nodedir="%~dp0."
 if errorlevel 1 goto build-node-weak-failed
 goto build-addons
 
@@ -292,12 +293,12 @@ if defined jslint_ci goto jslint-ci
 if not defined jslint goto exit
 if not exist tools\eslint\bin\eslint.js goto no-lint
 echo running jslint
-%config%\node tools\jslint.js -J benchmark lib src test tools\doc tools\eslint-rules tools\jslint.js
+%config%\iojs tools\jslint.js -J benchmark lib src test tools\doc tools\eslint-rules tools\jslint.js
 goto exit
 
 :jslint-ci
 echo running jslint-ci
-%config%\node tools\jslint.js -J -f tap -o test-eslint.tap benchmark lib src test tools\doc tools\eslint-rules tools\jslint.js
+%config%\iojs tools\jslint.js -J -f tap -o test-eslint.tap benchmark lib src test tools\doc tools\eslint-rules tools\jslint.js
 goto exit
 
 :no-lint
@@ -334,7 +335,7 @@ set FULLVERSION=
 
 for /F "usebackq tokens=*" %%i in (`python "%~dp0tools\getnodeversion.py"`) do set NODE_VERSION=%%i
 if not defined NODE_VERSION (
-  echo Cannot determine current version of Node.js
+  echo Cannot determine current version of io.js
   exit /b 1
 )
 
