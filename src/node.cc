@@ -1530,14 +1530,14 @@ static Local<Value> ExecuteString(Environment* env,
   if (script.IsEmpty()) {
     ReportException(env, try_catch);
     env->Exit(3);
-    return Handle<Value>();
+    return Local<Value>();
   }
 
   Local<Value> result = script->Run();
   if (result.IsEmpty()) {
     ReportException(env, try_catch);
     env->Exit(4);
-    return Handle<Value>();
+    return Local<Value>();
   }
 
   return scope.Escape(result);
@@ -3979,7 +3979,7 @@ Environment* CreateEnvironment(Isolate* isolate,
 void InitializeEnvironment(Environment* env,
                            Isolate* isolate,
                            uv_loop_t* loop,
-                           Handle<Context> context,
+                           Local<Context> context,
                            int argc,
                            const char* const* argv,
                            int exec_argc,
