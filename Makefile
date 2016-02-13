@@ -254,6 +254,12 @@ apidoc_sources = $(wildcard doc/api/*.md)
 apidocs = $(addprefix out/,$(apidoc_sources:.md=.html)) \
 		$(addprefix out/,$(apidoc_sources:.md=.json))
 
+test-workers: all
+	$(PYTHON) tools/test.py --mode=release workers -J
+
+test-workers-debug: all
+	$(PYTHON) tools/test.py --mode=debug workers -J
+
 apidoc_dirs = out/doc out/doc/api/ out/doc/api/assets
 
 apiassets = $(subst api_assets,api/assets,$(addprefix out/,$(wildcard doc/api_assets/*)))
