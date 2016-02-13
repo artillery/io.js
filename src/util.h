@@ -262,6 +262,8 @@ class MaybeStackBuffer {
     T buf_st_[kStackStorageSize];
 };
 
+char* ToUtf8Value(v8::Isolate* isolate, v8::Handle<v8::Value> value);
+
 class Utf8Value : public MaybeStackBuffer<char> {
   public:
     explicit Utf8Value(v8::Isolate* isolate, v8::Local<v8::Value> value);

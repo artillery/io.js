@@ -10,6 +10,25 @@ using v8::Local;
 using v8::String;
 using v8::Value;
 
+char* ToUtf8Value(v8::Isolate* isolate, v8::Local<v8::Value> value) {
+  if (value.IsEmpty())
+    return nullptr;
+
+  v8::Local<v8::String> string_value = value->ToString(isolate);
+  if (string_value.IsEmpty())
+    return nullptr;
+
+  // Allocate enough space to include the null terminator
+  size_t len = StringBytes::StorageSize(isolate, string_value, UTF8) + 1;
+  char* res = static_cast<char*>(malloc(len));
+
+  const int flags =
+      v8::String::NO_NULL_TERMINATION | v8::String::REPLACE_INVALID_UTF8;
+  int length = string_value->WriteUtf8(res, len, 0, flags);
+  res[length] = '\0';
+  return res;
+}
+
 template <typename T>
 static void MakeUtf8String(Isolate* isolate,
                            Local<Value> value,
