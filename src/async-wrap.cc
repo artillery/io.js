@@ -20,8 +20,8 @@ using v8::Local;
 using v8::MaybeLocal;
 using v8::Object;
 using v8::RetainedObjectInfo;
-using v8::TryCatch;
 using v8::Value;
+using v8::TryCatch;
 
 namespace node {
 
@@ -193,6 +193,8 @@ void LoadAsyncWrapperInfo(Environment* env) {
 Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
                                      int argc,
                                      Local<Value>* argv) {
+  if (!env()->CanCallIntoJs())
+    return Undefined(env()->isolate());
   CHECK(env()->context() == env()->isolate()->GetCurrentContext());
 
   Local<Function> pre_fn = env()->async_hooks_pre_function();
@@ -218,8 +220,11 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
     Local<Value> enter_v = domain->Get(env()->enter_string());
     if (enter_v->IsFunction()) {
       if (enter_v.As<Function>()->Call(domain, 0, nullptr).IsEmpty()) {
-        FatalError("node::AsyncWrap::MakeCallback",
+        if (env()->CanCallIntoJs())
+          FatalError("node::AsyncWrap::MakeCallback",
                    "domain enter callback threw, please report this");
+        else
+          return Undefined(env()->isolate());
       }
     }
   }
@@ -228,9 +233,13 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
     TryCatch try_catch(env()->isolate());
     MaybeLocal<Value> ar = pre_fn->Call(env()->context(), context, 1, &uid);
     if (ar.IsEmpty()) {
-      ClearFatalExceptionHandlers(env());
-      FatalException(env()->isolate(), try_catch);
-      return Local<Value>();
+      if (env()->CanCallIntoJs()) {
+        ClearFatalExceptionHandlers(env());
+        FatalException(env()->isolate(), try_catch);
+        return Local<Value>();
+      } else {
+        return Undefined(env()->isolate());
+      }
     }
   }
 
@@ -243,9 +252,13 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
     MaybeLocal<Value> ar =
         post_fn->Call(env()->context(), context, arraysize(vals), vals);
     if (ar.IsEmpty()) {
-      ClearFatalExceptionHandlers(env());
-      FatalException(env()->isolate(), try_catch);
-      return Local<Value>();
+      if (env()->CanCallIntoJs()) {
+        ClearFatalExceptionHandlers(env());
+        FatalException(env()->isolate(), try_catch);
+        return Local<Value>();
+      } else {
+        return Undefined(env()->isolate());
+      }
     }
   }
 
@@ -257,8 +270,11 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
     Local<Value> exit_v = domain->Get(env()->exit_string());
     if (exit_v->IsFunction()) {
       if (exit_v.As<Function>()->Call(domain, 0, nullptr).IsEmpty()) {
-        FatalError("node::AsyncWrap::MakeCallback",
+        if (env()->CanCallIntoJs())
+          FatalError("node::AsyncWrap::MakeCallback",
                    "domain exit callback threw, please report this");
+        else
+          return Undefined(env()->isolate());
       }
     }
   }
