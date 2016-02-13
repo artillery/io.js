@@ -179,6 +179,10 @@ bool trace_warnings = false;
 // process-relative uptime base, initialized at start-up
 static double prog_start_time;
 static bool debugger_running;
+// Needed for potentially non-thread-safe process-globals
+static uv_mutex_t process_mutex;
+// Workers have read-only access to process-globals but cannot write them
+static uv_rwlock_t process_rwlock;
 static uv_async_t dispatch_debug_messages_async;
 
 static node::atomic<Isolate*> node_isolate;
@@ -1569,6 +1573,7 @@ void AppendExceptionLine(Environment* env,
   if (env->printed_error())
     return;
   env->set_printed_error(true);
+  ScopedLock::Mutex lock(&process_mutex);
   uv_tty_reset_mode();
   PrintErrorString("\n%s", arrow);
 }
@@ -2474,6 +2479,7 @@ void ClearFatalExceptionHandlers(Environment* env) {
 
 static void Binding(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  ScopedLock::Mutex lock(env->ApiMutex());
 
   Local<String> module = args[0]->ToString(env->isolate());
   node::Utf8Value module_v(env->isolate(), module);
@@ -2573,7 +2579,12 @@ static void LinkedBinding(const FunctionCallbackInfo<Value>& args) {
 static void ProcessTitleGetter(Local<Name> property,
                                const PropertyCallbackInfo<Value>& info) {
   char buffer[512];
-  uv_get_process_title(buffer, sizeof(buffer));
+  {
+    // FIXME(petkaantonov) remove this when
+    // https://github.com/libuv/libuv/issues/271 is resolved.
+    ScopedLock::Read lock(&process_rwlock);
+    uv_get_process_title(buffer, sizeof(buffer));
+  }
   info.GetReturnValue().Set(String::NewFromUtf8(info.GetIsolate(), buffer));
 }
 
@@ -2582,7 +2593,9 @@ static void ProcessTitleSetter(Local<Name> property,
                                Local<Value> value,
                                const PropertyCallbackInfo<void>& info) {
   node::Utf8Value title(info.GetIsolate(), value);
-  // TODO(piscisaureus): protect with a lock
+  // FIXME(petkaantonov) remove this when
+  // https://github.com/libuv/libuv/issues/271 is resolved.
+  ScopedLock::Write lock(&process_rwlock);
   uv_set_process_title(*title);
 }
 
@@ -2590,6 +2603,7 @@ static void ProcessTitleSetter(Local<Name> property,
 static void EnvGetter(Local<String> property,
                       const PropertyCallbackInfo<Value>& info) {
   Isolate* isolate = info.GetIsolate();
+  ScopedLock::Read lock(&process_rwlock);
 #ifdef __POSIX__
   node::Utf8Value key(isolate, property);
   const char* val = getenv(*key);
@@ -2618,6 +2632,7 @@ static void EnvGetter(Local<String> property,
 static void EnvSetter(Local<String> property,
                       Local<Value> value,
                       const PropertyCallbackInfo<Value>& info) {
+  ScopedLock::Write lock(&process_rwlock);
 #ifdef __POSIX__
   node::Utf8Value key(info.GetIsolate(), property);
   node::Utf8Value val(info.GetIsolate(), value);
@@ -2639,6 +2654,7 @@ static void EnvSetter(Local<String> property,
 static void EnvQuery(Local<String> property,
                      const PropertyCallbackInfo<Integer>& info) {
   int32_t rc = -1;  // Not found unless proven otherwise.
+  ScopedLock::Read lock(&process_rwlock);
 #ifdef __POSIX__
   node::Utf8Value key(info.GetIsolate(), property);
   if (getenv(*key))
@@ -2665,6 +2681,7 @@ static void EnvQuery(Local<String> property,
 static void EnvDeleter(Local<String> property,
                        const PropertyCallbackInfo<Boolean>& info) {
   bool rc = true;
+  ScopedLock::Write lock(&process_rwlock);
 #ifdef __POSIX__
   node::Utf8Value key(info.GetIsolate(), property);
   rc = getenv(*key) != nullptr;
@@ -2691,7 +2708,7 @@ static void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
   Local<Function> fn = env->push_values_to_array_function();
   Local<Value> argv[NODE_PUSH_VAL_TO_ARRAY_MAX];
   size_t idx = 0;
-
+  ScopedLock::Read lock(&process_rwlock);
 #ifdef __POSIX__
   int size = 0;
   while (environ[size])
@@ -2809,6 +2826,7 @@ static Local<Object> GetFeatures(Environment* env) {
 
 static void DebugPortGetter(Local<Name> property,
                             const PropertyCallbackInfo<Value>& info) {
+  ScopedLock::Read lock(&process_rwlock);
   info.GetReturnValue().Set(debug_port);
 }
 
@@ -2816,6 +2834,7 @@ static void DebugPortGetter(Local<Name> property,
 static void DebugPortSetter(Local<Name> property,
                             Local<Value> value,
                             const PropertyCallbackInfo<void>& info) {
+  ScopedLock::Write lock(&process_rwlock);
   debug_port = value->Int32Value();
 }
 
@@ -4385,6 +4404,8 @@ static void StartNodeInstance(void* arg) {
 }
 
 int Start(int argc, char** argv) {
+  CHECK_EQ(uv_mutex_init(&process_mutex), 0);
+  CHECK_EQ(uv_rwlock_init(&process_rwlock), 0);
   PlatformInit();
 
   CHECK_GT(argc, 0);
@@ -4432,6 +4453,8 @@ int Start(int argc, char** argv) {
 
   delete[] exec_argv;
   exec_argv = nullptr;
+  uv_mutex_destroy(&process_mutex);
+  uv_rwlock_destroy(&process_rwlock);
 
   return exit_code;
 }
