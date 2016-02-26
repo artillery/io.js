@@ -417,7 +417,8 @@ class Environment {
   // See CreateEnvironment() in src/node.cc.
   static inline Environment* New(v8::Local<v8::Context> context,
                                  uv_loop_t* loop,
-                                 WorkerContext* worker_context = nullptr);
+                                 WorkerContext* worker_context = nullptr,
+                                 LoadExtensionsCb loadExtensions = nullptr);
   inline void CleanupHandles();
   inline void Dispose();
 
@@ -478,6 +479,8 @@ class Environment {
 
   inline WorkerContext* worker_context() const;
   inline void set_worker_context(WorkerContext* context);
+
+  LoadExtensionsCb load_extensions() const;
 
   inline Environment* owner_env() const;
   inline void set_owner_env(Environment* env);
@@ -575,7 +578,8 @@ class Environment {
   class IsolateData;
   inline Environment(v8::Local<v8::Context> context,
                      uv_loop_t* loop,
-                     size_t thread_id);
+                     size_t thread_id,
+                     LoadExtensionsCb loadExtensions);
   inline ~Environment();
   inline IsolateData* isolate_data() const;
 
@@ -592,6 +596,9 @@ class Environment {
   TickInfo tick_info_;
   ArrayBufferAllocatorInfo array_buffer_allocator_info_;
   const uint64_t timer_base_;
+
+  void(*load_extensions_)(v8::Isolate*, v8::Local<v8::Object> global);
+
   uv_timer_t cares_timer_handle_;
   ares_channel cares_channel_;
   ares_task_list cares_task_list_;

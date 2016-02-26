@@ -177,10 +177,11 @@ inline void Environment::ArrayBufferAllocatorInfo::reset_fill_flag() {
 
 inline Environment* Environment::New(v8::Local<v8::Context> context,
                                      uv_loop_t* loop,
-                                     WorkerContext* worker_context) {
+                                     WorkerContext* worker_context,
+                                     void(*loadExtensions)(v8::Isolate*, v8::Local<v8::Object> global)) {
   bool is_worker = worker_context != nullptr;
   size_t thread_id = is_worker ? GenerateThreadId() : 0;
-  Environment* env = new Environment(context, loop, thread_id);
+  Environment* env = new Environment(context, loop, thread_id, loadExtensions);
   if (is_worker) {
     env->set_worker_context(worker_context);
     worker_context->set_worker_env(env);
@@ -222,10 +223,12 @@ inline Environment* Environment::GetCurrent(
 
 inline Environment::Environment(v8::Local<v8::Context> context,
                                 uv_loop_t* loop,
-                                size_t thread_id)
+                                size_t thread_id,
+                                LoadExtensionsCb loadExtensions)
     : isolate_(context->GetIsolate()),
       isolate_data_(IsolateData::GetOrCreate(context->GetIsolate(), loop)),
       timer_base_(uv_now(loop)),
+      load_extensions_(loadExtensions),
       using_domains_(false),
       printed_error_(false),
       trace_sync_io_(false),
@@ -441,6 +444,10 @@ inline void Environment::set_worker_context(WorkerContext* context) {
   CHECK_EQ(worker_context_, nullptr);
   CHECK_NE(context, nullptr);
   worker_context_ = context;
+}
+
+inline LoadExtensionsCb Environment::load_extensions() const {
+  return load_extensions_;
 }
 
 inline Environment* Environment::owner_env() const {

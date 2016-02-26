@@ -3083,8 +3083,7 @@ static void RawDebug(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void LoadEnvironment(Environment* env,
-                     void(*loadExtensions)(v8::Isolate*, v8::Local<v8::Object> global)) {
+void LoadEnvironment(Environment* env, LoadExtensionsCb loadExtensions) {
   HandleScope handle_scope(env->isolate());
 
   env->isolate()->SetFatalErrorHandler(node::OnFatalError);
@@ -3910,7 +3909,8 @@ Environment* CreateEnvironment(Isolate* isolate,
                           argc,
                           argv,
                           exec_argc,
-                          exec_argv);
+                          exec_argv,
+                          nullptr);
 
   LoadEnvironment(env, nullptr);
 
@@ -3959,11 +3959,12 @@ Environment* CreateEnvironment(Isolate* isolate,
                                int argc,
                                const char* const* argv,
                                int exec_argc,
-                               const char* const* exec_argv) {
+                               const char* const* exec_argv,
+                               LoadExtensionsCb loadExtensions) {
   HandleScope handle_scope(isolate);
 
   Context::Scope context_scope(context);
-  Environment* env = Environment::New(context, loop);
+  Environment* env = Environment::New(context, loop, nullptr, loadExtensions);
   InitializeEnvironment(env,
                         isolate,
                         loop,
@@ -4084,7 +4085,7 @@ static int RunMainThread(int argc,
                            int exec_argc,
                            const char** exec_argv,
                            void(*loop)(v8::Platform*, v8::Isolate*, uv_loop_t*, Environment*),
-                           void(*loadExtensions)(v8::Isolate*, v8::Local<v8::Object> global)
+                           LoadExtensionsCb loadExtensions
                            ) {
   // Fetch a reference to the main isolate, so we have a reference to it
   // even when we need it to access it from another (debugger) thread.
@@ -4107,7 +4108,8 @@ static int RunMainThread(int argc,
                                          argc,
                                          argv,
                                          exec_argc,
-                                         exec_argv);
+                                         exec_argv,
+                                         loadExtensions);
     array_buffer_allocator->set_env(env);
     Context::Scope context_scope(context);
 
@@ -4170,7 +4172,7 @@ size_t GenerateThreadId() {
 
 int Start(int argc, char** argv,
           void(*loop)(v8::Platform*, Isolate*, uv_loop_t*, Environment*),
-          void(*loadExtensions)(v8::Isolate*, Local<Object>)
+          LoadExtensionsCb loadExtensions
           ) {
   CHECK_EQ(uv_mutex_init(&process_mutex), 0);
   CHECK_EQ(uv_mutex_init(&thread_id_counter_mutex), 0);
