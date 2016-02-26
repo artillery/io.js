@@ -179,7 +179,8 @@ void Agent::WorkerRun() {
         arraysize(argv),
         argv,
         arraysize(argv),
-        argv);
+        argv,
+        nullptr);
 
     child_env_ = env;
 

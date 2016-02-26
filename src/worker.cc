@@ -45,13 +45,15 @@ WorkerContext::WorkerContext(Environment* owner_env,
                              const char** exec_argv,
                              bool keep_alive,
                              char* user_data,
-                             bool eval)
+                             bool eval,
+                             LoadExtensionsCb loadExtensions)
     : owner_env_(owner_env),
       worker_isolate_(nullptr),
       owner_wrapper_(owner_env->isolate(), owner_wrapper),
       keep_alive_(keep_alive),
       user_data_(user_data),
       eval_(eval),
+      load_extensions_(loadExtensions),
       event_loop_(event_loop),
       owner_notifications_(owner_event_loop(),
                            OwnerNotificationCallback,
@@ -135,7 +137,8 @@ void WorkerContext::New(const FunctionCallbackInfo<Value>& args) {
                         const_cast<const char**>(exec_argv),
                         keep_alive->BooleanValue(),
                         ToUtf8Value(env->isolate(), user_data),
-                        eval->BooleanValue());
+                        eval->BooleanValue(),
+                        env->load_extensions());
 
   err = uv_thread_create(context->worker_thread(), RunWorkerThread, context);
 
@@ -675,7 +678,7 @@ void WorkerContext::Run() {
       // To enable debugging uncomment StartDebug and EnableDebug.
       // TODO: Control debugging of worker threads via a commandline flag.
       //StartDebug(env, true);
-      node::LoadEnvironment(env, nullptr);
+      node::LoadEnvironment(env, load_extensions_);
 
       //EnableDebug(env);
 

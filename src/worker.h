@@ -46,6 +46,8 @@ enum WorkerMessageType {
 #undef DECLARE_ENUM_ITEM
 };
 
+typedef void(*LoadExtensionsCb)(v8::Isolate*, v8::Local<v8::Object> global);
+
 class WorkerMessage {
   public:
     WorkerMessage(char* payload, size_t size,
@@ -94,7 +96,8 @@ class WorkerContext {
            const char** exec_argv,
            bool keep_alive,
            char* user_data,
-           bool eval);
+           bool eval,
+           LoadExtensionsCb loadExtensions);
     static void Initialize(v8::Handle<v8::Object> target,
                            v8::Handle<v8::Value> unused,
                            v8::Handle<v8::Context> context);
@@ -265,6 +268,8 @@ class WorkerContext {
     bool const keep_alive_ = true;
     char* user_data_ = nullptr;
     bool const eval_ = false;
+
+    LoadExtensionsCb load_extensions_ = nullptr;
 
     uv_loop_t* event_loop_;
     uv_thread_t thread_;

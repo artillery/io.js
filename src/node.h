@@ -180,6 +180,8 @@ namespace node {
 
 class Environment;
 
+typedef void(*LoadExtensionsCb)(v8::Isolate*, v8::Local<v8::Object> global);
+
 NODE_EXTERN extern bool no_deprecation;
 #if HAVE_OPENSSL && NODE_FIPS_MODE
 NODE_EXTERN extern bool enable_fips_crypto;
@@ -193,7 +195,7 @@ NODE_EXTERN void EnableDebug(Environment* env);
 
 NODE_EXTERN int Start(int argc, char *argv[],
                       void(*loop)(v8::Platform*, v8::Isolate*, uv_loop_s*, Environment*),
-                      void(*loadExtensions)(v8::Isolate*, v8::Local<v8::Object> global));
+                      LoadExtensionsCb loadExtensions);
 NODE_EXTERN void Init(int* argc,
                       const char** argv,
                       int* exec_argc,
@@ -205,9 +207,9 @@ NODE_EXTERN Environment* CreateEnvironment(v8::Isolate* isolate,
                                            int argc,
                                            const char* const* argv,
                                            int exec_argc,
-                                           const char* const* exec_argv);
-NODE_EXTERN void LoadEnvironment(Environment* env,
-                                 void(*loadExtensions)(v8::Isolate*, v8::Local<v8::Object>));
+                                           const char* const* exec_argv,
+                                           LoadExtensionsCb loadExtensions);
+NODE_EXTERN void LoadEnvironment(Environment* env, LoadExtensionsCb loadExtensions);
 
 // NOTE: Calling this is the same as calling
 // CreateEnvironment() + LoadEnvironment() from above.
