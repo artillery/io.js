@@ -10,6 +10,7 @@
 #include "v8.h"
 
 #include <memory>
+#include <vector>
 
 #ifndef NODE_OS_MACOSX
   #define CHECK_CALLED_FROM_OWNER(worker_context)                              \
@@ -81,7 +82,6 @@ class WorkerMessage {
     friend class WorkerContext;
 };
 
-typedef ListHead<WorkerMessage, &WorkerMessage::member> WorkerMessageList;
 // Terms:
 // 'owner' the environment of this worker's owner. Can run in main thread but
 // a worker can also own other workers.
@@ -148,9 +148,9 @@ class WorkerContext {
     WorkerMessage* SerializePostMessage(
         BSON* bson, v8::Isolate* i, const v8::FunctionCallbackInfo<v8::Value>& args);
     void ProcessMessagesToOwner();
-    bool ProcessMessageToOwner(v8::Isolate* isolate, WorkerMessage* message);
+    bool ProcessMessageToOwner(v8::Isolate* isolate, std::unique_ptr<WorkerMessage> message);
     void ProcessMessagesToWorker();
-    bool ProcessMessageToWorker(v8::Isolate* isolate, WorkerMessage* message);
+    bool ProcessMessageToWorker(v8::Isolate* isolate, std::unique_ptr<WorkerMessage> message);
     void PostMessageToOwner(WorkerMessage* message);
     void PostMessageToWorker(WorkerMessage* message);
     void Exit(int exit_code);
@@ -300,8 +300,9 @@ class WorkerContext {
                           WorkerMessage> to_owner_messages_primary_;
     ProducerConsumerQueue<kPrimaryQueueSize,
                           WorkerMessage> to_worker_messages_primary_;
-    WorkerMessageList to_owner_messages_backup_;
-    WorkerMessageList to_worker_messages_backup_;
+
+    std::vector<std::unique_ptr<WorkerMessage>> to_owner_messages_temp_;
+    std::vector<std::unique_ptr<WorkerMessage>> to_worker_messages_temp_;
 
     friend class Environment;
 };

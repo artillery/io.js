@@ -85,6 +85,9 @@ WorkerContext::WorkerContext(Environment* owner_env,
   CHECK_EQ(uv_mutex_init(to_owner_messages_mutex()), 0);
   CHECK_EQ(uv_mutex_init(to_worker_messages_mutex()), 0);
 
+  to_owner_messages_temp_.reserve(kPrimaryQueueSize);
+  to_worker_messages_temp_.reserve(kPrimaryQueueSize);
+
   HandleScope scope(owner_env->isolate());
   owner_bson_ = new BSON(owner_env->isolate());
 }
@@ -157,10 +160,9 @@ void WorkerContext::New(const FunctionCallbackInfo<Value>& args) {
 }
 
 void WorkerContext::PostMessageToOwner(WorkerMessage* message) {
-  if (!to_owner_messages_primary_.PushBack(message)) {
-    ScopedLock::Mutex lock(to_owner_messages_mutex());
-    to_owner_messages_backup_.PushBack(message);
-  }
+  // The consumer tries very hard to keep the primary queue empty, so its reasonable to spin
+  // here if the queue is full.
+  while (!to_owner_messages_primary_.PushBack(message));
   owner_notifications()->Notify();
 }
 
@@ -221,21 +223,24 @@ void WorkerContext::PostMessageToOwner(
   }
 
   HandleScope scope(context->worker_isolate());
-  context->PostMessageToOwner(context->SerializePostMessage(context->worker_bson_, context->worker_isolate(), args));
+  auto serialized = context->SerializePostMessage(context->worker_bson_, context->worker_isolate(), args);
+  term_lock.unlock(); // release mutex before PostMessageToOwner, which can spin.
+
+  context->PostMessageToOwner(serialized);
 }
 
 void WorkerContext::PostMessageToWorker(WorkerMessage* message) {
+  {
   ScopedLock::Mutex term_lock(termination_mutex());
   if (termination_kind() != NONE) {
     delete message;
     return;
   }
+  } // Don't need term_lock now, we aren't making any v8 api calls here.
 
-  if (!to_worker_messages_primary_.PushBack(message)) {
-    ScopedLock::Mutex lock(to_worker_messages_mutex());
-    to_worker_messages_backup_.PushBack(message);
-  }
-
+  // The consumer tries very hard to keep the primary queue empty, so its reasonable to spin
+  // here if the queue is full.
+  while (!to_worker_messages_primary_.PushBack(message));
   worker_notifications()->Notify();
 }
 
@@ -435,12 +440,12 @@ static Local<Value> DeserializeMessage(BSON* bson, Isolate* isolate, WorkerMessa
 }
 
 bool WorkerContext::ProcessMessageToWorker(Isolate* isolate,
-                                           WorkerMessage* message) {
+                                           std::unique_ptr<WorkerMessage> message) {
   Local<Value> argv[] = {
-    DeserializeMessage(worker_bson_, isolate, message),
+    DeserializeMessage(worker_bson_, isolate, message.get()),
     Integer::New(isolate, message->type())
   };
-  delete message;
+  message.reset(nullptr);
   MakeCallback(isolate,
                worker_wrapper(),
                "_onmessage",
@@ -456,38 +461,40 @@ void WorkerContext::ProcessMessagesToWorker() {
   HandleScope scope(isolate);
   Context::Scope context_scope(worker_env()->context());
 
-  flush_primary_queue:
-  uint32_t messages_processed = 0;
-  while (WorkerMessage* message = to_worker_messages_primary_.PopFront()) {
-    if (!ProcessMessageToWorker(isolate, message))
-      return;
-    messages_processed++;
-  }
-
-  if (messages_processed >= kMaxPrimaryQueueMessages) {
-    while (true) {
-      WorkerMessage* message = nullptr;
-      {
-        ScopedLock::Mutex lock(to_worker_messages_mutex());
-        message = to_worker_messages_backup_.PopFront();
-      }
-
-      if (message == nullptr)
-        goto flush_primary_queue;
-
-      if (!ProcessMessageToWorker(isolate, message))
-        return;
+  to_worker_messages_temp_.clear();
+  size_t messageIdx = 0;
+  // Pop messages off of the lock free queue quickly into temporary storage, and process them
+  // one at a time before checking the queue again. This means the
+  // producer will only block if it is filling up the primary queue faster than the worker can
+  // process a single message, which corresponds to an imbalance of kPrimaryQueueSize:1 which
+  // is totally untenable in any case.
+  do {
+    uint32_t numPopped = 0;
+    while (WorkerMessage* message = to_worker_messages_primary_.PopFront()) {
+      to_worker_messages_temp_.push_back(std::unique_ptr<WorkerMessage>(message));
+      numPopped++;
+      if (numPopped >= kPrimaryQueueSize) { break; }
     }
-  }
+
+    if (messageIdx < to_worker_messages_temp_.size()) {
+      std::unique_ptr<WorkerMessage> message = std::move(to_worker_messages_temp_[messageIdx]);
+      messageIdx++;
+      if (!ProcessMessageToWorker(isolate, std::move(message))) {
+        return;
+      }
+    } else {
+      break;
+    }
+  } while (true);
 }
 
 bool WorkerContext::ProcessMessageToOwner(Isolate* isolate,
-                                          WorkerMessage* message) {
+                                          std::unique_ptr<WorkerMessage> message) {
   Local<Value> argv[] = {
-    DeserializeMessage(owner_bson_, isolate, message),
+    DeserializeMessage(owner_bson_, isolate, message.get()),
     Integer::New(isolate, message->type())
   };
-  delete message;
+  message.reset(nullptr);
   MakeCallback(isolate,
                owner_wrapper(),
                "_onmessage",
@@ -502,29 +509,31 @@ void WorkerContext::ProcessMessagesToOwner() {
   HandleScope scope(isolate);
   Context::Scope context_scope(owner_env()->context());
 
-  flush_primary_queue:
-  uint32_t messages_processed = 0;
-  while (WorkerMessage* message = to_owner_messages_primary_.PopFront()) {
-    if (!ProcessMessageToOwner(isolate, message))
-      return;
-    messages_processed++;
-  }
-
-  if (messages_processed >= kMaxPrimaryQueueMessages) {
-    while (true) {
-      WorkerMessage* message = nullptr;
-      {
-        ScopedLock::Mutex lock(to_owner_messages_mutex());
-        message = to_owner_messages_backup_.PopFront();
-      }
-
-      if (message == nullptr)
-        goto flush_primary_queue;
-
-      if (!ProcessMessageToOwner(isolate, message))
-        return;
+  to_owner_messages_temp_.clear();
+  size_t messageIdx = 0;
+  // Pop messages off of the lock free queue quickly into temporary storage, and process them
+  // one at a time before checking the queue again. This means the
+  // producer will only block if it is filling up the primary queue faster than the worker can
+  // process a single message, which corresponds to an imbalance of kPrimaryQueueSize:1 which
+  // is totally untenable in any case.
+  do {
+    uint32_t numPopped = 0;
+    while (WorkerMessage* message = to_owner_messages_primary_.PopFront()) {
+      to_owner_messages_temp_.push_back(std::unique_ptr<WorkerMessage>(message));
+      numPopped++;
+      if (numPopped >= kPrimaryQueueSize) { break; }
     }
-  }
+
+    if (messageIdx < to_owner_messages_temp_.size()) {
+      std::unique_ptr<WorkerMessage> message = std::move(to_owner_messages_temp_[messageIdx]);
+      messageIdx++;
+      if (!ProcessMessageToOwner(isolate, std::move(message))) {
+        return;
+      }
+    } else {
+      break;
+    }
+  } while (true);
 }
 
 void WorkerContext::Dispose() {
@@ -546,11 +555,6 @@ void WorkerContext::Dispose() {
 
   delete[] argv_;
   delete[] exec_argv_;
-
-  while (WorkerMessage* message = to_worker_messages_backup_.PopFront())
-    delete message;
-  while (WorkerMessage* message = to_owner_messages_backup_.PopFront())
-    delete message;
 
   owner_env()->RemoveSubWorkerContext(this);
   // Deleting WorkerContexts in response to their notification signals
