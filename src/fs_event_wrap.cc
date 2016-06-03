@@ -37,6 +37,7 @@ class FSEventWrap: public HandleWrap {
   FSEventWrap(Environment* env, Local<Object> object);
   virtual ~FSEventWrap() override;
 
+  static void HandleWillForceClose(HandleWrap* wrap, uv_handle_t* handle);
   static void OnEvent(uv_fs_event_t* handle, const char* filename, int events,
     int status);
 
@@ -104,6 +105,8 @@ void FSEventWrap::Start(const FunctionCallbackInfo<Value>& args) {
 
   int err = uv_fs_event_init(wrap->env()->event_loop(), &wrap->handle_);
   if (err == 0) {
+    wrap->RegisterHandleCleanup(reinterpret_cast<uv_handle_t*>(&wrap->handle_),
+                                HandleWillForceClose);
     wrap->initialized_ = true;
 
     err = uv_fs_event_start(&wrap->handle_, OnEvent, *path, flags);
@@ -177,6 +180,11 @@ void FSEventWrap::OnEvent(uv_fs_event_t* handle, const char* filename,
   }
 
   wrap->MakeCallback(env->onchange_string(), arraysize(argv), argv);
+}
+
+
+void FSEventWrap::HandleWillForceClose(HandleWrap* wrap, uv_handle_t* handle) {
+  static_cast<FSEventWrap*>(wrap)->initialized_ = false;
 }
 
 
