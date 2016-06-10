@@ -2407,6 +2407,28 @@
     },
     {
       'target_name': 'mksnapshot',
+
+      # Artillery fix -- There seems to be no way to specify this other than here.
+      'default_configuration': 'Release',
+      'configurations': {
+        'Debug': {
+          'defines': [ 'DEBUG', '_DEBUG' ],
+          'msvs_settings': {
+            'VCCLCompilerTool': {
+              'RuntimeLibrary': 3, # multi-threaded DLL debug
+            },
+          },
+        },
+        'Release': {
+          'defines': [ 'NDEBUG' ],
+          'msvs_settings': {
+            'VCCLCompilerTool': {
+              'RuntimeLibrary': 2, # multi-threaded DLL release
+            },
+          },
+        },
+      },
+
       'type': 'executable',
       'dependencies': ['v8_base', 'v8_nosnapshot', 'v8_libplatform'],
       'include_dirs+': [
